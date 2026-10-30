@@ -1810,3 +1810,30 @@ button:active {
   font-size: 12.5px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
 }
+
+
+/* ===== Simplified UI + saved chats + thinking mode ===== */
+.nav-desc, .nav-footer-card, .persona-chips-row, #btnSetDefaultPreset, #btnNewPersonaPrompt,
+.composer-hint, .keyboard-send-hint, #colabStartupTimeLabel, #btnCalibrateCU, #driveMountBadge,
+.vram-cluster .cu-meta-row { display: none !important; }
+.chat-toolbar { display: flex; gap: 10px; align-items: center; }
+.think-toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; color: var(--text-muted); }
+.think-toggle input { display: none; }
+.think-switch { width: 34px; height: 18px; border-radius: 9px; background: rgba(255,255,255,0.14); position: relative; transition: background .2s; }
+.think-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: transform .2s; }
+.think-toggle input:checked + .think-switch { background: var(--accent-cyan, #22d3ee); }
+.think-toggle input:checked + .think-switch::after { transform: translateX(16px); }
+.think-toggle input:checked ~ span:last-child { color: var(--accent-cyan, #22d3ee); }
+.chat-history-panel { max-height: 220px; overflow-y: auto; margin: 0 0 10px; border: 1px solid var(--border-hairline, rgba(255,255,255,0.1)); border-radius: 8px; padding: 6px; }
+.chat-history-panel.hidden { display: none; }
+.chat-history-empty { padding: 10px; font-size: 12.5px; color: var(--text-muted); }
+.chat-history-row { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.chat-history-row:hover { background: rgba(255,255,255,0.06); }
+.chat-history-row .ch-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-history-row .ch-meta { font-size: 11px; color: var(--text-muted); }
+.chat-history-row button { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 2px 6px; }
+.chat-history-row button:hover { color: #f87171; }
+.think-box { margin-bottom: 8px; font-size: 12.5px; color: var(--text-muted); border-left: 2px solid var(--accent-cyan, #22d3ee); padding-left: 10px; }
+.think-box summary { cursor: pointer; font-weight: 600; }
+.think-box div { white-space: pre-wrap; margin-top: 6px; }
+.chat-bubble.error .bubble-body { color: #fca5a5; }

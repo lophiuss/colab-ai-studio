@@ -461,6 +461,28 @@ function loadState() {
 }
 
 let state = loadState();
+state.chats = Array.isArray(state.chats) ? state.chats : [];
+state.chatSettings = state.chatSettings || { thinking: false };
+state.activeChatId = state.activeChatId || 'chat-' + Date.now();
+
+function chatTitleFrom(messages) {
+  const first = (messages || []).find(m => m.role === 'user');
+  const t = first ? first.content.replace(/^\[Batch Queue\]\s*/, '').trim() : '';
+  return t ? (t.length > 42 ? t.slice(0, 42) + '...' : t) : 'New chat';
+}
+
+function archiveActiveChat() {
+  const hasUser = state.chatMessages.some(m => m.role === 'user');
+  if (!hasUser) return;
+  const entry = {
+    id: state.activeChatId,
+    title: state.activeChatTitle || chatTitleFrom(state.chatMessages),
+    updatedAt: new Date().toISOString(),
+    messages: state.chatMessages
+  };
+  state.chats = state.chats.filter(c => c.id !== entry.id);
+  state.chats.unshift(entry);
+}
 
 function saveState() {
   try {
@@ -819,130 +841,73 @@ async function enhanceUserPrompt(rawPrompt, mode = 'chat') {
   return `Provide a comprehensive, well-structured response for: "${clean}". Include clear architectural reasoning, concrete examples, edge-case considerations, and concise actionable takeaways.`;
 }
 
-async function generateChatResponse(prompt, preset, modelId) {
-  const clean = (prompt || '').trim();
-  const lower = clean.toLowerCase();
-  const presetId = preset?.id || 'preset-natural';
-  const sysPrompt = preset?.systemPrompt || '';
-
-  // 1. If Colab worker is active and tunnel is live, attempt real generation from Colab GPU
-  if (state.colab.status === 'READY' && state.colab.tunnelUrl) {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout for Colab GPU generation
-      const res = await fetch(`${state.colab.tunnelUrl}/generate/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: clean,
-          systemPrompt: sysPrompt,
-          model: modelId,
-          temperature: state.presets.sampling.temperature,
-          topP: state.presets.sampling.topP,
-          maxTokens: state.presets.sampling.maxTokens
-        }),
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
-      if (res.ok) {
-        const data = await res.json();
-        if (data && data.response) return data.response;
-      }
-    } catch (_) {
-      // Gracefully continue to intelligent conversational engine
-    }
+function splitThinking(raw) {
+  const text = String(raw || '');
+  const closed = text.match(/<think>([\s\S]*?)<\/think>/i);
+  if (closed) {
+    return { thinking: closed[1].trim(), content: text.replace(/<think>[\s\S]*?<\/think>/i, '').trim() };
   }
-
-  // 2. Intelligent, human, persona-aligned conversational engine (No robotic boilerplate!)
-  // Common greetings
-  if (/^(hi|hello|hey|halo|howdy|sup|yo|good (morning|afternoon|evening)|hai)\b/i.test(clean)) {
-    if (presetId === 'preset-uncensored-creative') {
-      return `Hey! Good to see you. What kind of story, dialogue, or creative world are we getting into today? Give me an idea and let's run with it.`;
-    }
-    if (presetId === 'preset-architect') {
-      return `Hello! Technical and systems workbench ready. What are we designing, building, or debugging today?`;
-    }
-    if (presetId === 'preset-novelist') {
-      return `Welcome back to the desk. The page is open and ready—where are we taking our scene next?`;
-    }
-    if (presetId === 'preset-concise') {
-      return `Hello! How can I assist you right now?`;
-    }
-    return `Hey there! How's it going? What are you working on today? Let me know what you need—whether it's bouncing ideas around, writing, coding, or just chatting.`;
-  }
-
-  // Math & arithmetic queries (e.g. "1+1=?", "5 * 12", "100 / 4")
-  const mathClean = clean.replace(/[\?=\s]/g, '');
-  const mathMatch = clean.replace(/\?/g, '').trim().match(/^(\d+(?:\.\d+)?)\s*([\+\-\*\/xX\^])\s*(\d+(?:\.\d+)?)\s*=?$/);
-  if (mathMatch) {
-    const a = parseFloat(mathMatch[1]);
-    const op = mathMatch[2].toLowerCase();
-    const b = parseFloat(mathMatch[3]);
-    let ans;
-    if (op === '+') ans = a + b;
-    else if (op === '-') ans = a - b;
-    else if (op === '*' || op === 'x') ans = a * b;
-    else if (op === '/') ans = b !== 0 ? (a / b) : 'undefined (division by zero)';
-    else if (op === '^') ans = Math.pow(a, b);
-    return `${clean.replace(/\?/g, '').trim()} **${ans}**`;
-  }
-
-  // Common quick tests
-  if (/^(test|testing|ping|check|test test)\b/i.test(clean)) {
-    return `Loud and clear! The model and chat connection are live and responsive. What's on your mind?`;
-  }
-
-  // Keyboard mash / random gibberish (e.g. "adsacacac", "asdfghjk", "hhaha", "qwerty")
-  if (/^[asdfghjklqwertyuiopzxcvbnm]{6,}$/i.test(clean) && !['continue', 'describe', 'generate', 'creative', 'character', 'chapter'].includes(lower)) {
-    return `Haha, looks like a keyboard mash or typo! 😄 What question, novel scene, or project would you like to work on?`;
-  }
-
-  // Casual remarks & affirmations (e.g. "cool man", "nice", "awesome", "ok", "sounds good")
-  if (/^(cool(\s*man|\s*bro)?|nice|awesome|great|sweet|dope|solid|alright|ok|okay|sounds good|got it|haha|lol|yep|yeah|no problem)\b/i.test(clean)) {
-    if (presetId === 'preset-uncensored-creative') {
-      return `Glad you're on board! What's next? Give me a character, a prompt, or a scene beat and let's make it wild.`;
-    }
-    if (presetId === 'preset-concise') {
-      return `Understood. Ready for your next instruction.`;
-    }
-    return `Right on! 😎 What would you like to test or create next? We can write a novel scene, generate concept art in Image Studio, render a video clip, or test out a new prompt!`;
-  }
-
-  // Thanks & appreciation
-  if (/^(thanks|thank you|thx|ty|much appreciated)\b/i.test(clean)) {
-    return `You're very welcome! Let me know whenever you're ready for the next prompt or task.`;
-  }
-
-  // Conversational check-ins
-  if (/^(how are you|who are you|what can you do|what are you)\b/i.test(clean)) {
-    if (presetId === 'preset-uncensored-creative') {
-      return `I'm your uncensored creative co-pilot and narrative partner. I'm tuned to write vivid stories, explore wild plotlines, develop deep characters, and play along with whatever creative direction you throw at me. What do you feel like creating?`;
-    }
-    return `I'm your creative AI companion running with the **${preset.name}** persona. I can chat normally, help you draft novels and scripts, refine prompts, generate images and videos, or write clean code. How can I help you today?`;
-  }
-
-  // Novel / Story / Creative queries
-  if (lower.includes('novel') || lower.includes('chapter') || lower.includes('character') || lower.includes('plot') || presetId === 'preset-novelist') {
-    return `Here is a compelling direction for your story:\n\nOpen the scene by grounding the reader in a single arresting physical detail—a sound, a scent, or an unusual object on the table. When your characters speak, let what they *leave unsaid* do the heavy lifting.\n\n> *"The oil lamp flickered once, drowning the workbench in amber shadow. Kaelen reached for his loupe, his fingertips brushing against cold, unfamiliar brass that shouldn't have been ticking at all."*\n\nWould you like me to continue this scene, build out a dialogue exchange, or draft the next chapter beat?`;
-  }
-
-  // Coding & Architecture
-  if (lower.includes('code') || lower.includes('function') || lower.includes('python') || lower.includes('javascript') || lower.includes('api') || lower.includes('bug') || presetId === 'preset-architect') {
-    return `Here is the clean, idiomatic approach to solve that:\n\n\`\`\`javascript\n// Optimized implementation\nasync function handleTask(payload) {\n  const startTime = performance.now();\n  try {\n    const result = await processPayload(payload);\n    return { success: true, data: result, latencyMs: Math.round(performance.now() - startTime) };\n  } catch (err) {\n    console.error('Task execution failed:', err.message);\n    return { success: false, error: err.message };\n  }\n}\n\`\`\`\n\n**Key takeaways:**\n- Error boundaries are isolated so failures don't crash the parent thread.\n- High-resolution timing metrics give you exact visibility into execution bottlenecks.\n\nLet me know if you want to adapt this to a specific framework or need the Python equivalent!`;
-  }
-
-  // Concise persona
-  if (presetId === 'preset-concise') {
-    return `Got it. Here is the direct answer for "${clean}":\n\nThe most effective approach is to isolate your core requirement, execute the primary logic cleanly, and verify outcomes with direct assertions. Let me know if you'd like a specific example or code snippet.`;
-  }
-
-  // Default natural conversational response: thoughtful, direct, friendly human style
-  if (clean.length < 30 && !clean.includes('?')) {
-    return `Got it! What would you like to explore or create around "${clean}"? Let me know where you'd like to take it!`;
-  }
-
-  return `Regarding "${clean}":\n\nThat's a great thought. The best way to approach this is to keep it straightforward and build on it directly. What specific aspect would you like to focus on first?`;
+  const open = text.match(/<think>([\s\S]*)$/i);
+  if (open) return { thinking: open[1].trim(), content: '' };
+  return { thinking: '', content: text.trim() };
 }
+
+function buildHistoryPrompt(history, clean) {
+  const turns = (history || [])
+    .filter(m => m && m.id !== 'msg-welcome' && m.content && !m.error)
+    .slice(-12)
+    .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${String(m.content).slice(0, 1500)}`);
+  if (!turns.length) return clean;
+  return `Conversation so far:\n${turns.join('\n')}\n\nReply to the latest user message:\nUser: ${clean}`;
+}
+
+async function generateChatReply(prompt, preset, modelId, opts = {}) {
+  const clean = (prompt || '').trim();
+  const thinking = !!opts.thinking;
+  let sysPrompt = preset?.systemPrompt || '';
+  sysPrompt += thinking
+    ? '\n\nBefore answering, reason step by step inside <think>...</think> tags, then write the final answer after the closing tag.'
+    : '\n\nAnswer directly. Do not show your reasoning.';
+  let userPrompt = buildHistoryPrompt(opts.history, clean);
+  if (!thinking && /qwen3/i.test(modelId || '')) userPrompt = '/no_think ' + userPrompt;
+
+  if (!(state.colab.status === 'READY' && state.colab.tunnelUrl)) {
+    return { content: 'The Colab GPU is not connected. Click "Full-Auto Colab" or "1-Line CLI + Open Colab" at the top, then try again.', thinking: '', failed: true };
+  }
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120000);
+    const res = await fetch(`${state.colab.tunnelUrl}/generate/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt: userPrompt,
+        systemPrompt: sysPrompt,
+        model: modelId,
+        temperature: state.presets.sampling.temperature,
+        topP: state.presets.sampling.topP,
+        maxTokens: thinking ? 512 : state.presets.sampling.maxTokens
+      }),
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    const data = res.ok ? await res.json() : null;
+    if (data && data.ok !== false && data.response) {
+      const parts = splitThinking(data.response);
+      if (!thinking) return { content: parts.content || parts.thinking, thinking: '', failed: false };
+      if (!parts.content) parts.content = '(Token limit reached while thinking. Ask again or turn Thinking off.)';
+      return { content: parts.content, thinking: parts.thinking, failed: false };
+    }
+    return { content: `GPU error: ${(data && (data.error || data.response)) || 'HTTP ' + res.status}`, thinking: '', failed: true };
+  } catch (e) {
+    return { content: `Could not reach the Colab GPU (${e.name === 'AbortError' ? 'timed out' : e.message}). Check the connection status at the top.`, thinking: '', failed: true };
+  }
+}
+
+async function generateChatResponse(prompt, preset, modelId) {
+  return (await generateChatReply(prompt, preset, modelId, { thinking: false })).content;
+}
+
 
 async function generateNovelProse(prompt, actionType = 'continue', currentManuscript = '') {
   const loreContext = (state.novel.lorebook || []).map(l => `• [${l.category}] ${l.name}: ${l.notes}`).join('\n');
@@ -1838,6 +1803,42 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { ok: true, models: state.models, colab: state.colab });
     }
 
+    // Saved chats: new / open / delete / rename / thinking toggle
+    if (req.method === 'POST' && pathname === '/api/chats') {
+      const body = await parseJsonBody(req);
+      const welcome = state.chatMessages.filter(m => m.id === 'msg-welcome');
+      if (body.action === 'new') {
+        archiveActiveChat();
+        state.activeChatId = 'chat-' + Date.now();
+        state.activeChatTitle = '';
+        state.chatMessages = welcome.length ? welcome : [];
+      } else if (body.action === 'open') {
+        const target = state.chats.find(c => c.id === body.id);
+        if (!target) return sendJson(res, 404, { error: 'Chat not found' });
+        if (target.id !== state.activeChatId) {
+          archiveActiveChat();
+          state.chats = state.chats.filter(c => c.id !== target.id);
+          state.activeChatId = target.id;
+          state.activeChatTitle = target.title;
+          state.chatMessages = target.messages;
+        }
+      } else if (body.action === 'delete') {
+        state.chats = state.chats.filter(c => c.id !== body.id);
+      } else if (body.action === 'rename') {
+        const title = String(body.title || '').trim().slice(0, 80);
+        if (!title) return sendJson(res, 400, { error: 'Title required' });
+        if (body.id === state.activeChatId) state.activeChatTitle = title;
+        const t = state.chats.find(c => c.id === body.id);
+        if (t) t.title = title;
+      } else if (body.action === 'thinking') {
+        state.chatSettings.thinking = !!body.value;
+      } else {
+        return sendJson(res, 400, { error: 'Unknown action' });
+      }
+      saveState();
+      return sendJson(res, 200, { ok: true });
+    }
+
     // 9. Multi-Modal Direct Execution Endpoints (Chat, Novel, Image, Video, Safe Agent)
     if (req.method === 'POST' && pathname === '/api/studio/chat') {
       const body = await parseJsonBody(req);
@@ -1853,12 +1854,16 @@ const server = http.createServer(async (req, res) => {
       state.chatMessages.push(userMsg);
 
       const preset = state.presets.list.find(p => p.id === state.presets.activePresetId) || state.presets.list[0];
-      const replyContent = await generateChatResponse(prompt, preset, state.models.activeTextModel);
+      if (typeof body.thinking === 'boolean') state.chatSettings.thinking = body.thinking;
+      const history = state.chatMessages.filter(m => m.id !== userMsg.id);
+      const reply = await generateChatReply(prompt, preset, state.models.activeTextModel, { history, thinking: state.chatSettings.thinking });
       const assistantMsg = {
         id: 'msg-' + (Date.now() + 1),
         role: 'assistant',
         model: state.models.activeTextModel,
-        content: replyContent,
+        content: reply.content,
+        thinking: reply.thinking || undefined,
+        error: reply.failed || undefined,
         timestamp: new Date().toISOString()
       };
       state.chatMessages.push(assistantMsg);

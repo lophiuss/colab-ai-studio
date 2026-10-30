@@ -234,6 +234,42 @@ function renderPersonaDeck() {
 
 let isSendingChat = false;
 
+function renderChatHistoryPanel() {
+  const panel = document.getElementById('chatHistoryPanel');
+  if (!panel || panel.classList.contains('hidden')) return;
+  const chats = appState.chats || [];
+  panel.innerHTML = chats.length ? chats.map(c => `
+    <div class="chat-history-row" data-chat-id="${c.id}">
+      <span class="ch-title">${escapeHtml(c.title)}</span>
+      <span class="ch-meta">${new Date(c.updatedAt).toLocaleDateString()}</span>
+      <button type="button" class="ch-rename" title="Rename">✎</button>
+      <button type="button" class="ch-delete" title="Delete">✕</button>
+    </div>`).join('') : '<div class="chat-history-empty">No saved chats yet. Chats are saved automatically when you start a new one.</div>';
+  panel.querySelectorAll('.chat-history-row').forEach(row => {
+    const id = row.dataset.chatId;
+    row.onclick = async () => {
+      await apiPost('/api/chats', { action: 'open', id });
+      document.getElementById('chatTranscript').dataset.lastCount = '';
+      panel.classList.add('hidden');
+      await fetchState();
+    };
+    row.querySelector('.ch-delete').onclick = async (e) => {
+      e.stopPropagation();
+      if (!confirm('Delete this saved chat?')) return;
+      await apiPost('/api/chats', { action: 'delete', id });
+      await fetchState();
+    };
+    row.querySelector('.ch-rename').onclick = async (e) => {
+      e.stopPropagation();
+      const current = (appState.chats.find(c => c.id === id) || {}).title || '';
+      const title = prompt('Rename chat:', current);
+      if (!title || !title.trim()) return;
+      await apiPost('/api/chats', { action: 'rename', id, title: title.trim() });
+      await fetchState();
+    };
+  });
+}
+
 function renderChatStudio() {
   if (!appState) return;
   document.getElementById('chatActiveModelPill').textContent = appState.models.activeTextModel;
@@ -241,12 +277,22 @@ function renderChatStudio() {
   if (isSendingChat) return; // Do not overwrite in-flight typing bubble
 
   const transcript = document.getElementById('chatTranscript');
+  const titleEl = document.getElementById('chatTitleLabel');
+  if (titleEl) {
+    const t = appState.activeChatTitle || (appState.chatMessages.find(m => m.role === 'user') || {}).content || 'New chat';
+    titleEl.textContent = t.length > 48 ? t.slice(0, 48) + '...' : t;
+  }
+  const thinkChk = document.getElementById('chkThinking');
+  if (thinkChk) thinkChk.checked = !!(appState.chatSettings && appState.chatSettings.thinking);
+  renderChatHistoryPanel();
+
   const html = appState.chatMessages.map(m => `
-    <div class="chat-bubble ${m.role}">
+    <div class="chat-bubble ${m.role}${m.error ? ' error' : ''}">
       <div class="bubble-meta">
         <span>${m.role === 'user' ? 'You' : (m.model || 'Colab Assistant')}</span>
         <span>${new Date(m.timestamp).toLocaleTimeString()}</span>
       </div>
+      ${m.thinking ? `<details class="think-box"><summary>Thought process</summary><div>${escapeHtml(m.thinking)}</div></details>` : ''}
       <div class="bubble-body">${escapeHtml(m.content).replace(/\n/g, '<br/>')}</div>
     </div>
   `).join('');
@@ -904,7 +950,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     isSendingChat = true;
     chatInput.value = '';
     btnSend.disabled = true;
-    btnSend.innerHTML = '<span>Thinking... ⏳</span>';
+    btnSend.innerHTML = '<span>Generating... ⏳</span>';
 
     // Optimistic User Bubble
     const optimisticTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -935,7 +981,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     transcript.scrollTop = transcript.scrollHeight;
 
     try {
-      const res = await apiPost('/api/studio/chat', { prompt });
+      const res = await apiPost('/api/studio/chat', { prompt, thinking: document.getElementById('chkThinking').checked });
       document.getElementById(typingId)?.remove();
       document.getElementById('optimistic-user-bubble')?.remove();
       isSendingChat = false;
@@ -969,6 +1015,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   btnSend.addEventListener('click', () => {
     sendChatMessage();
+  });
+
+  document.getElementById('btnNewChat').addEventListener('click', async () => {
+    if (isSendingChat) return;
+    await apiPost('/api/chats', { action: 'new' });
+    document.getElementById('chatTranscript').dataset.lastCount = '';
+    await fetchState();
+    chatInput.focus();
+  });
+  document.getElementById('btnChatHistory').addEventListener('click', () => {
+    document.getElementById('chatHistoryPanel').classList.toggle('hidden');
+    renderChatHistoryPanel();
+  });
+  document.getElementById('chkThinking').addEventListener('change', async (e) => {
+    await apiPost('/api/chats', { action: 'thinking', value: e.target.checked });
+    showToast(e.target.checked ? 'Thinking mode ON (slower, shows reasoning)' : 'Thinking mode OFF');
   });
 
   document.getElementById('btnQueueChat').addEventListener('click', async () => {
