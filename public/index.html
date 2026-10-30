@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Colab AI Studio — 200 CU Orchestrator & Multi-Modal Workbench</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <!-- LOGIN OVERLAY (Triggers Auto-Run Colab on Sign-In) -->
+  <div id="loginModal" class="login-backdrop">
+    <div class="login-dialog">
+      <div class="login-brand-row">
+        <span class="brand-glyph">⚡</span>
+        <div>
+          <h1>Colab AI Studio</h1>
+          <p class="subtitle">Personal GPU Workbench &amp; 200 Compute Unit Orchestrator</p>
+        </div>
+      </div>
+
+      <form id="loginForm" class="login-form">
+        <div class="field-group">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <label for="loginEmail">Creator Account</label>
+            <span class="field-hint" style="color:var(--accent-cyan); font-weight:600;">(Auto-saved)</span>
+          </div>
+          <input id="loginEmail" type="email" value="creator@colabaistudio.local" placeholder="your-email@gmail.com" required />
+        </div>
+
+        <div class="field-group">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <label for="loginNotebookUrl">Google Colab Worker Notebook URL</label>
+            <button id="btnAutoKeyLoginNotebook" type="button" class="btn-link" style="font-size:12px; font-weight:600; color:var(--accent-amber);" title="Auto-fill your saved Colab worker notebook URL">
+              🪄 Auto-Key In URL
+            </button>
+          </div>
+          <input id="loginNotebookUrl" type="url" value="https://colab.research.google.com/drive/1ColabAIStudioWorkerAutoRun" placeholder="https://colab.research.google.com/drive/..." required />
+          <span class="field-hint">Linked to <code>MyDrive/ColabAIStudio/colab_ai_worker.ipynb</code></span>
+        </div>
+
+        <div class="field-row-2">
+          <div class="field-group">
+            <label for="loginGpuTier">Default Colab GPU Tier</label>
+            <select id="loginGpuTier">
+              <option value="T4" selected>Tesla T4 (15 GB VRAM · 1.96 CU/hr)</option>
+              <option value="L4">NVIDIA L4 (22.5 GB VRAM · 4.82 CU/hr)</option>
+              <option value="A100">NVIDIA A100 (40 GB VRAM · 13.11 CU/hr)</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label for="loginCuBalance">Current CU Balance (Max 200)</label>
+            <input id="loginCuBalance" type="number" step="0.1" min="0" max="500" value="186.4" />
+          </div>
+        </div>
+
+        <label class="checkbox-row">
+          <input id="loginAutoStart" type="checkbox" checked />
+          <span>Automatically wake &amp; run Colab notebook (<code>Ctrl+F9</code>) upon login</span>
+        </label>
+
+        <div class="login-actions">
+          <button type="submit" class="btn-primary btn-large">
+            Sign In &amp; Auto-Launch Colab Runtime
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- CREATOR ACCOUNT & NOTEBOOK SETTINGS MODAL -->
+  <div id="accountModal" class="modal-backdrop hidden">
+    <div class="modal-card" style="max-width: 540px;">
+      <div class="modal-header">
+        <div class="brand-badge">👤</div>
+        <div>
+          <h3>Creator Account &amp; Notebook Settings</h3>
+          <p class="subtitle">Save your Creator profile &amp; Google Colab Worker Notebook URL</p>
+        </div>
+      </div>
+
+      <div class="stack-form" style="margin-top: 16px;">
+        <div class="field-group">
+          <label for="accountEmail">Creator Email Address</label>
+          <input id="accountEmail" type="email" placeholder="your-email@gmail.com" />
+          <span class="field-hint">Used for private sync and session state persistence</span>
+        </div>
+
+        <div class="field-group">
+          <label for="accountName">Creator Display Name</label>
+          <input id="accountName" type="text" placeholder="AI Creator" />
+        </div>
+
+        <div class="field-group">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <label for="accountNotebookUrl">Google Colab Worker Notebook URL</label>
+            <button id="btnAutoKeyAccountNotebook" type="button" class="btn-link" style="font-size:12px; font-weight:600; color:var(--accent-amber);" title="Auto-key in the Colab Worker Notebook link">
+              🪄 Auto-Key In URL
+            </button>
+          </div>
+          <input id="accountNotebookUrl" type="url" placeholder="https://colab.research.google.com/drive/..." />
+          <div style="display:flex; justify-content:space-between; margin-top: 4px;">
+            <span class="field-hint">Auto-launches on login and runs all cells</span>
+            <a id="linkOpenColabNotebook" href="#" target="_blank" class="btn-link" style="font-size:11.5px; text-decoration:none;">↗ Open in Colab</a>
+          </div>
+        </div>
+
+        <div class="field-row-2">
+          <div class="field-group">
+            <label for="accountGpuTier">Default GPU Tier</label>
+            <select id="accountGpuTier">
+              <option value="T4">Tesla T4 (15 GB · 1.96 CU/hr)</option>
+              <option value="L4">NVIDIA L4 (22.5 GB · 4.82 CU/hr)</option>
+              <option value="A100">NVIDIA A100 (40 GB · 13.11 CU/hr)</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label for="accountPairingTopic">Safe Auto-Fetch Topic</label>
+            <input id="accountPairingTopic" type="text" value="colab_sync_studio_9f4k2x8m" readonly />
+          </div>
+        </div>
+
+        <label class="checkbox-row">
+          <input id="accountAutoRunCheckbox" type="checkbox" checked />
+          <span>Automatically wake &amp; run Colab runtime upon login</span>
+        </label>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 14px; padding-top: 12px; border-top:1px solid var(--border-hairline);">
+          <button id="btnLogoutAccount" type="button" class="btn-compact btn-ghost-danger">Sign Out</button>
+          <div style="display:flex; gap: 8px;">
+            <button id="btnCloseAccountModal" type="button" class="btn-compact btn-secondary">Cancel</button>
+            <button id="btnSaveAccountSettings" type="button" class="btn-compact btn-primary">💾 Save Creator Account</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOVEL BRAINSTORM MODAL -->
+  <div id="novelBrainstormModal" class="modal-backdrop hidden">
+    <div class="modal-card" style="max-width: 580px;">
+      <div class="modal-header">
+        <div class="brand-badge">✨</div>
+        <div>
+          <h3>AI Story Worldbuilder &amp; Brainstormer</h3>
+          <p class="modal-sub">Generate a brand new original novel title, lorebook characters &amp; rules, and Chapter 1 prose on Colab GPU</p>
+        </div>
+      </div>
+      <div class="modal-body">
+        <label>Story Premise / Genre / Theme
+          <textarea id="brainstormPremiseInput" rows="3" placeholder="Describe the premise (e.g. Cyberpunk detective hunting an illegal AI, Gothic Victorian mystery, Deep space colony rebellion)..."></textarea>
+        </label>
+        <div style="margin-top: 8px;">
+          <span style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 6px;">Quick Presets:</span>
+          <div style="display:flex; flex-wrap:wrap; gap: 6px;">
+            <button type="button" class="btn-compact btn-secondary btn-quick-premise" data-premise="Cyberpunk detective in rainy Neo-Tokyo chasing a memory dealer with forbidden temporal shards">🏙️ Cyberpunk Noir</button>
+            <button type="button" class="btn-compact btn-secondary btn-quick-premise" data-premise="Ancient dragon riders fighting an encroaching eclipse plague across floating obsidian sky-islands">🐉 High Fantasy</button>
+            <button type="button" class="btn-compact btn-secondary btn-quick-premise" data-premise="Derelict deep-space generation ship where the waking crew discovers the central AI is experiencing grief">🌌 Sci-Fi AI Odyssey</button>
+            <button type="button" class="btn-compact btn-secondary btn-quick-premise" data-premise="Victorian occult investigator uncovering a secret society that harvests nightmares from brass music boxes">🕰️ Gothic Steampunk</button>
+          </div>
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap: 8px; margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--border-hairline);">
+          <button id="btnCloseBrainstormModal" type="button" class="btn-compact btn-secondary">Cancel</button>
+          <button id="btnExecuteBrainstorm" type="button" class="btn-compact btn-primary">✨ Brainstorm on Colab GPU</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FULL HD MEDIA LIGHTBOX MODAL -->
+  <div id="mediaLightboxModal" class="modal-backdrop hidden">
+    <div class="lightbox-dialog">
+      <div class="lightbox-header">
+        <div id="lightboxPrompt" class="lightbox-prompt-text">Prompt details...</div>
+        <div class="lightbox-header-actions">
+          <button id="btnLightboxCopyPrompt" type="button" class="btn-compact btn-secondary">📋 Copy Prompt</button>
+          <a id="btnLightboxDownload" href="#" target="_blank" download="render.jpg" class="btn-compact btn-primary">⬇ Download HD</a>
+          <button id="btnCloseLightbox" type="button" class="btn-compact btn-secondary" style="font-size:16px;">✕</button>
+        </div>
+      </div>
+      <div class="lightbox-body">
+        <img id="lightboxImage" class="lightbox-media-img" src="" alt="Full preview" />
+      </div>
+      <div class="lightbox-footer">
+        <span id="lightboxMeta" class="mono-meta">1024x576 · FLUX.1-dev</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN APPLICATION SHELL -->
+  <div class="app-shell">
+    <!-- TOP TELEMETRY & 200 COMPUTE UNIT BAR -->
+    <header class="top-telemetry-bar">
+      <div class="brand-cluster">
+        <div class="brand-badge">⚡</div>
+        <div>
+          <div class="brand-title">Colab AI Studio</div>
+          <div class="brand-sub" id="activeModelHeaderBadge">Qwen/Qwen2.5-7B-Instruct</div>
+        </div>
+      </div>
+
+      <!-- COLAB RUNTIME STATUS & STARTUP PROGRESS BAR -->
+      <div class="runtime-cluster">
+        <div class="runtime-top-row">
+          <span id="colabStatusDot" class="status-dot disconnected"></span>
+          <span id="colabStatusText" class="runtime-status-label">Colab Disconnected</span>
+          <span id="colabStartupTimeLabel" class="mono-meta">0.0s / ~12s</span>
+          <div class="runtime-btn-group">
+            <button id="btnCopyColabCli" class="btn-compact btn-wand" title="Copy 1-Line Colab CLI command to clipboard & open Colab in your current logged-in browser">⚡ 1-Line CLI + Open Colab</button>
+            <button id="btnConnectTunnel" class="btn-compact btn-secondary" title="Paste & Connect live Cloudflare tunnel URL manually">🔗 Paste Tunnel</button>
+            <button id="btnWakeColab" class="btn-compact btn-amber" title="Full-Auto Browser Wake & Run Colab">🚀 Full-Auto Colab</button>
+            <button id="btnShutdownColab" class="btn-compact btn-ghost-danger" title="Unassign Colab Runtime to stop CU burn">Disconnect GPU</button>
+          </div>
+        </div>
+        <div class="startup-bar-track" title="Colab Startup & Readiness Progress">
+          <div id="colabProgressBarFill" class="startup-bar-fill" style="width: 0%"></div>
+        </div>
+        <div id="colabStageCaption" class="stage-caption">Sign in or click Auto-Run Colab to allocate GPU runtime</div>
+      </div>
+
+      <!-- 200 COMPUTE UNIT (CU) METER -->
+      <div class="cu-meter-cluster">
+        <div class="cu-header-row">
+          <span class="cu-title">Compute Units</span>
+          <span id="cuRemainingValue" class="cu-readout">186.40 / 200.00 CU</span>
+        </div>
+        <div class="cu-gauge-track">
+          <div id="cuGaugeFill" class="cu-gauge-fill" style="width: 93.2%"></div>
+        </div>
+        <div class="cu-meta-row">
+          <span id="cuBurnRateLabel">Burn: 1.96 CU/hr (T4)</span>
+          <span id="cuSessionSpentLabel">Session: 0.000 CU</span>
+          <button id="btnCalibrateCU" class="btn-link">Sync CU</button>
+        </div>
+      </div>
+
+      <!-- GPU VRAM TELEMETRY -->
+      <div class="vram-cluster">
+        <div class="cu-header-row">
+          <span id="gpuTierBadge" class="cu-title">Tesla T4 VRAM</span>
+          <span id="vramReadout" class="mono-meta">0.0 / 15.4 GB</span>
+        </div>
+        <div class="vram-gauge-track">
+          <div id="vramGaugeFill" class="vram-gauge-fill" style="width: 0%"></div>
+        </div>
+        <div class="cu-meta-row">
+          <span id="gpuUtilLabel">GPU Load: 0%</span>
+          <span id="driveMountBadge" class="drive-badge">Drive Cache Linked</span>
+        </div>
+      </div>
+
+      <!-- CREATOR ACCOUNT CLUSTER -->
+      <div class="account-cluster">
+        <button id="btnOpenAccountModal" type="button" class="user-chip-btn" title="View & edit Creator Account and Colab Notebook URL">
+          <span class="user-avatar">👤</span>
+          <div class="user-info-text">
+            <span id="telemetryUserEmail" class="user-email-label">creator@colabaistudio.local</span>
+            <span class="user-role-badge">⚙️ Account Settings</span>
+          </div>
+        </button>
+      </div>
+    </header>
+
+    <!-- EXPANDED COLAB STARTUP PROGRESS DRAWER (Visible while STARTING or toggled) -->
+    <section id="startupStagesBanner" class="startup-stages-banner hidden">
+      <div class="startup-banner-header">
+        <div>
+          <strong>Zero-Touch Colab Boot Sequence Active</strong>
+          <span id="startupDetailSubtitle" class="mono-meta">Executing colab_ai_worker.ipynb on Google Colab GPU</span>
+        </div>
+        <div class="startup-timer-pill" id="startupTimerPill">Elapsed: 0.0s · ETA: 12.0s</div>
+      </div>
+      <div id="startupStagesGrid" class="startup-stages-grid"></div>
+    </section>
+
+    <!-- MAIN 3-COLUMN WORKBENCH -->
+    <div class="workbench-grid">
+      <!-- LEFT NAVIGATION RAIL -->
+      <aside class="nav-rail">
+        <div class="nav-section-label">Workspaces</div>
+        <button class="nav-item active" data-tab="chat">
+          <span class="nav-icon">💬</span>
+          <div>
+            <div class="nav-title">Interactive Chat</div>
+            <div class="nav-desc">Streaming LLM &amp; Code</div>
+          </div>
+        </button>
+        <button class="nav-item" data-tab="novel">
+          <span class="nav-icon">📖</span>
+          <div>
+            <div class="nav-title">Novel Studio</div>
+            <div class="nav-desc">Chapters &amp; Story Bible</div>
+          </div>
+        </button>
+        <button class="nav-item" data-tab="image">
+          <span class="nav-icon">🎨</span>
+          <div>
+            <div class="nav-title">Image Studio</div>
+            <div class="nav-desc">FLUX &amp; SD3.5 Diffusers</div>
+          </div>
+        </button>
+        <button class="nav-item" data-tab="video">
+          <span class="nav-icon">🎬</span>
+          <div>
+            <div class="nav-title">Video Studio</div>
+            <div class="nav-desc">Wan2.1 &amp; LTX Motion</div>
+          </div>
+        </button>
+        <button class="nav-item" data-tab="agent">
+          <span class="nav-icon">🛡️</span>
+          <div>
+            <div class="nav-title">Safe Agents</div>
+            <div class="nav-desc">Sandboxed Multi-Step AI</div>
+          </div>
+        </button>
+
+        <div class="nav-section-label">Configuration</div>
+        <button class="nav-item" data-tab="models">
+          <span class="nav-icon">🤗</span>
+          <div>
+            <div class="nav-title">HF Models &amp; Presets</div>
+            <div class="nav-desc">Weights &amp; System Prompts</div>
+          </div>
+        </button>
+        <button class="nav-item" data-tab="setup">
+          <span class="nav-icon">⚙️</span>
+          <div>
+            <div class="nav-title">Colab Auto-Setup</div>
+            <div class="nav-desc">Notebook &amp; 200 CU Rules</div>
+          </div>
+        </button>
+
+        <div class="nav-footer-card">
+          <div class="nav-footer-row">
+            <span>Active Persona</span>
+            <button id="btnSideSetDefault" class="btn-link" title="Set active persona as your permanent default">Set Default</button>
+          </div>
+          <select id="globalPresetSelect" class="compact-select"></select>
+          <div class="nav-footer-meta" id="navSamplingSummary">Temp 0.78 · Top-P 0.92</div>
+        </div>
+      </aside>
+
+      <!-- CENTER STUDIO STAGE -->
+      <main class="studio-stage">
+        <!-- 1. INTERACTIVE CHAT WORKSPACE -->
+        <section id="tab-chat" class="workspace-panel active">
+          <div class="panel-header">
+            <div>
+              <h2>Interactive Chat &amp; Reasoning</h2>
+              <p class="panel-subtitle">Connected to Hugging Face LLM on Colab VRAM with system prompt preset injection</p>
+            </div>
+            <div class="header-badges">
+              <span class="pill-badge" id="chatActiveModelPill">Qwen/Qwen2.5-7B-Instruct</span>
+            </div>
+          </div>
+
+          <!-- SYSTEM PROMPT & PERSONA CONTROL DECK -->
+          <div class="persona-control-deck">
+            <div class="persona-top-row">
+              <div class="persona-title-group">
+                <span class="persona-label">System Persona:</span>
+                <select id="chatPresetSelect" class="persona-select"></select>
+                <button id="btnSetDefaultPreset" type="button" class="btn-compact btn-star" title="Set this system prompt as your permanent default">
+                  ⭐ <span id="btnSetDefaultText">Set as Default</span>
+                </button>
+              </div>
+              <div class="persona-actions-group">
+                <button id="btnTogglePersonaEditor" type="button" class="btn-compact btn-secondary">
+                  ✏️ Edit / Customize Persona
+                </button>
+                <button id="btnNewPersonaPrompt" type="button" class="btn-compact btn-ghost-amber">
+                  + New Persona
+                </button>
+              </div>
+            </div>
+
+            <!-- Quick Swap Preset Chips -->
+            <div class="persona-chips-row">
+              <span class="chips-label">Quick Swap:</span>
+              <div id="personaChipsContainer" class="persona-chips-container"></div>
+            </div>
+
+            <!-- Collapsible Inline Persona Editor -->
+            <div id="inlinePersonaEditor" class="inline-persona-editor hidden">
+              <div class="persona-editor-header">
+                <strong>Customize System Prompt Preference: <span id="editingPresetNameLabel" style="color:var(--accent-cyan);">Natural &amp; Conversational Human</span></strong>
+                <span class="field-hint">Defines how the AI responds (personality, tone, constraints, and instructions)</span>
+              </div>
+              <textarea id="inlineSystemPromptText" rows="4" placeholder="Enter system instructions (e.g., You are a natural, engaging conversational companion...)..."></textarea>
+              <div class="persona-editor-actions">
+                <label class="checkbox-row compact">
+                  <input id="chkMakeDefaultOnSave" type="checkbox" />
+                  <span>Also save as my default system prompt</span>
+                </label>
+                <div style="display:flex; gap:8px;">
+                  <button id="btnCancelPersonaEdit" type="button" class="btn-compact btn-secondary">Close</button>
+                  <button id="btnSavePersonaPreference" type="button" class="btn-compact btn-primary">💾 Save Preference</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="chatTranscript" class="chat-transcript"></div>
+
+          <div class="composer-box">
+            <div class="composer-toolbar">
+              <button type="button" class="btn-compact btn-wand" data-enhance-target="chatPromptInput" data-enhance-mode="chat">
+                ✨ Enhance Quality Prompt
+              </button>
+              <span class="composer-hint">⌨️ Press <b>Enter</b> to send · <b>Shift+Enter</b> for new line</span>
+            </div>
+            <textarea id="chatPromptInput" rows="3" placeholder="Type your message, ask questions, draft ideas (Press Enter to send)..."></textarea>
+            <div class="composer-actions">
+              <span class="keyboard-send-hint" style="font-size:11.5px; color:var(--text-muted);">💡 Press <b>Enter</b> to send directly</span>
+              <div style="display:flex; gap:8px;">
+                <button id="btnQueueChat" type="button" class="btn-secondary">
+                  + Add to Batch Queue
+                </button>
+                <button id="btnSendChat" type="button" class="btn-primary">
+                  <span>Send Message ⏎</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. NOVEL & LONG-FORM WRITING STUDIO -->
+        <section id="tab-novel" class="workspace-panel">
+          <div class="panel-header">
+            <div style="flex:1; max-width:650px;">
+              <div class="novel-title-wrap">
+                <input id="novelTitleInput" class="novel-title-input" type="text" value="The Chronometer of Glass Harbor" placeholder="Enter Novel / Book Title..." title="Click to edit novel title" />
+                <span id="novelSaveStatus" class="mono-meta badge-sub">● Auto-Saved</span>
+              </div>
+              <p class="panel-subtitle">Long-form manuscript editor with Story Bible Lorebook injection &amp; batch chapter queuing</p>
+            </div>
+            <div class="header-actions">
+              <button id="btnBrainstormNovel" class="btn-wand" title="Let Colab GPU brainstorm a complete new story premise, characters, and opening">✨ AI Brainstorm Story</button>
+              <button id="btnNewNovel" class="btn-secondary" title="Start a fresh blank story">🧹 New Story</button>
+              <button id="btnExportNovel" class="btn-secondary" title="Download manuscript as Markdown">📥 Export</button>
+              <button id="btnNewChapter" class="btn-secondary">+ New Chapter</button>
+              <button id="btnBatchQueueChapters" class="btn-amber">Queue 3 Sequential Chapters</button>
+            </div>
+          </div>
+
+          <div class="novel-layout">
+            <!-- Left column: Chapters & Story Bible Lorebook -->
+            <div class="novel-sidebar">
+              <div class="subcard">
+                <div class="subcard-header">
+                  <strong>Chapters</strong>
+                  <span id="novelWordCountBadge" class="mono-meta">0 words</span>
+                </div>
+                <div id="chapterList" class="chapter-list"></div>
+              </div>
+
+              <div class="subcard">
+                <div class="subcard-header">
+                  <strong>Story Bible / Lorebook</strong>
+                </div>
+                <div id="lorebookList" class="lorebook-list"></div>
+                <div class="lore-add-form">
+                  <input id="loreNameInput" type="text" placeholder="Character or World Rule name" />
+                  <input id="loreNotesInput" type="text" placeholder="Traits or continuity rule..." />
+                  <button id="btnAddLore" class="btn-compact btn-secondary">+ Add Lore Entry</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right column: Manuscript Editor & AI Co-Writer -->
+            <div class="novel-editor-column">
+              <input id="chapterTitleInput" class="chapter-title-input" type="text" value="Chapter I" />
+              <textarea id="novelManuscriptEditor" class="novel-manuscript" rows="12" placeholder="Begin your chapter prose here..."></textarea>
+
+              <div class="composer-box compact">
+                <div class="composer-toolbar">
+                  <button type="button" class="btn-compact btn-wand" data-enhance-target="novelPromptInput" data-enhance-mode="novel">
+                    ✨ Enhance Scene Direction
+                  </button>
+                  <button id="btnSaveNovel" type="button" class="btn-compact btn-secondary">Save Manuscript</button>
+                </div>
+                <input id="novelPromptInput" type="text" placeholder="Scene beat or direction (e.g., Kaelen discovers a hidden memory shard inside the watch)..." />
+                <div class="composer-actions">
+                  <button class="btn-secondary novel-ai-btn" data-novel-action="expand">Expand Sensory Detail</button>
+                  <button class="btn-secondary novel-ai-btn" data-novel-action="rewrite">Literary Rewrite</button>
+                  <button id="btnQueueNovelScene" class="btn-secondary">+ Queue Scene</button>
+                  <button class="btn-primary novel-ai-btn" data-novel-action="continue">Continue Chapter</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. IMAGE GENERATION STUDIO -->
+        <section id="tab-image" class="workspace-panel">
+          <div class="panel-header">
+            <div>
+              <h2>Image Generation Studio (Diffusers)</h2>
+              <p class="panel-subtitle">Generate concept art, character portraits &amp; book covers using FLUX.1-dev or SD 3.5 on Colab VRAM</p>
+            </div>
+            <span class="pill-badge" id="imageActiveModelPill">black-forest-labs/FLUX.1-dev</span>
+          </div>
+
+          <div class="composer-box">
+            <div class="composer-toolbar">
+              <button type="button" class="btn-compact btn-wand" data-enhance-target="imagePromptInput" data-enhance-mode="image">
+                ✨ Enhance Visual Prompt
+              </button>
+              <div class="inline-controls">
+                <label>Ratio
+                  <select id="imageAspectRatio">
+                    <option value="16:9">16:9 Cinematic</option>
+                    <option value="1:1">1:1 Square</option>
+                    <option value="3:4">3:4 Portrait</option>
+                  </select>
+                </label>
+                <label>Steps
+                  <input id="imageSteps" type="number" value="28" min="4" max="60" style="width:60px" />
+                </label>
+                <label>CFG
+                  <input id="imageCfg" type="number" step="0.5" value="3.5" min="1" max="15" style="width:60px" />
+                </label>
+              </div>
+            </div>
+            <textarea id="imagePromptInput" rows="2" placeholder="Describe subject, lighting, lens, and atmosphere (or click Enhance Visual Prompt)..."></textarea>
+            <div class="composer-actions">
+              <button id="btnQueueImageBatch" type="button" class="btn-amber">+ Queue 3 Variations</button>
+              <button id="btnQueueImage" type="button" class="btn-secondary">+ Add to Queue</button>
+              <button id="btnGenerateImage" type="button" class="btn-primary">Render Image (0.12 CU)</button>
+            </div>
+          </div>
+
+          <div id="imageGalleryGrid" class="media-gallery-grid"></div>
+        </section>
+
+        <!-- 4. VIDEO GENERATION STUDIO -->
+        <section id="tab-video" class="workspace-panel">
+          <div class="panel-header">
+            <div>
+              <h2>Video Generation Studio (Temporal Motion)</h2>
+              <p class="panel-subtitle">Synthesize animated scenes with Wan2.1-T2V-14B &amp; LTX-Video on Colab GPU</p>
+            </div>
+            <span class="pill-badge" id="videoActiveModelPill">Wan-AI/Wan2.1-T2V-14B</span>
+          </div>
+
+          <div class="composer-box">
+            <div class="composer-toolbar">
+              <button type="button" class="btn-compact btn-wand" data-enhance-target="videoPromptInput" data-enhance-mode="video">
+                ✨ Enhance Motion Prompt
+              </button>
+              <div class="inline-controls">
+                <label>Camera
+                  <select id="videoCameraMotion">
+                    <option value="Dolly Push-In">Dolly Push-In</option>
+                    <option value="Anamorphic Orbit">Anamorphic Orbit</option>
+                    <option value="Slow Crane Rise">Slow Crane Rise</option>
+                    <option value="Handheld Tracking">Handheld Tracking</option>
+                  </select>
+                </label>
+                <label>Duration
+                  <select id="videoDuration">
+                    <option value="5">5 sec</option>
+                    <option value="8">8 sec</option>
+                  </select>
+                </label>
+                <label>Motion
+                  <input id="videoMotionStrength" type="number" step="0.1" min="0.2" max="1.0" value="0.8" style="width:60px" />
+                </label>
+              </div>
+            </div>
+            <textarea id="videoPromptInput" rows="2" placeholder="Describe scene movement, camera path, and lighting dynamics..."></textarea>
+            <div class="composer-actions">
+              <button id="btnQueueVideo" type="button" class="btn-secondary">+ Add Video to Queue</button>
+              <button id="btnGenerateVideo" type="button" class="btn-primary">Render Video Clip (0.25 CU)</button>
+            </div>
+          </div>
+
+          <div id="videoGalleryGrid" class="media-gallery-grid"></div>
+        </section>
+
+        <!-- 5. SAFE AUTONOMOUS AGENT STUDIO -->
+        <section id="tab-agent" class="workspace-panel">
+          <div class="panel-header">
+            <div>
+              <h2>Safe Autonomous Agent Workflows</h2>
+              <p class="panel-subtitle">Sandboxed, loop-guarded multi-step agents that verify reasoning without unsafe execution</p>
+            </div>
+            <span class="pill-badge pill-emerald">🛡️ Read-Only Guardrails Active</span>
+          </div>
+
+          <div id="agentProfilesGrid" class="agent-profiles-grid"></div>
+
+          <div class="composer-box">
+            <div class="composer-toolbar">
+              <button type="button" class="btn-compact btn-wand" data-enhance-target="agentGoalInput" data-enhance-mode="agent">
+                ✨ Structure Agent Objective
+              </button>
+              <span id="selectedAgentBadge" class="mono-meta">Selected: Deep Research &amp; Synthesis Agent</span>
+            </div>
+            <textarea id="agentGoalInput" rows="2" placeholder="Define the goal for the safe autonomous agent (e.g., Audit Chapter I continuity and generate a 3-scene plot outline for Chapter II)..."></textarea>
+            <div class="composer-actions">
+              <button id="btnQueueAgent" type="button" class="btn-secondary">+ Queue Agent Task</button>
+              <button id="btnRunAgent" type="button" class="btn-primary">Execute Safe Agent Run (0.09 CU)</button>
+            </div>
+          </div>
+
+          <div id="agentRunsContainer" class="agent-runs-list"></div>
+        </section>
+
+        <!-- 6. HUGGING FACE MODELS & SYSTEM PROMPT PRESETS -->
+        <section id="tab-models" class="workspace-panel">
+          <div class="panel-header">
+            <div>
+              <h2>Hugging Face Model Hub &amp; System Prompt Presets</h2>
+              <p class="panel-subtitle">Dynamically load open-weight models into Colab VRAM &amp; customize system instructions</p>
+            </div>
+          </div>
+
+          <div class="two-col-config">
+            <!-- Left: Hugging Face Models -->
+            <div class="subcard">
+              <div class="subcard-header">
+                <strong>Hugging Face Model Catalog</strong>
+                <span class="mono-meta">HF_TOKEN: Active</span>
+              </div>
+              <div id="hfModelsList" class="hf-models-list"></div>
+
+              <form id="customModelForm" class="stack-form">
+                <strong>Load Custom Hugging Face Repo ID</strong>
+                <input id="customRepoId" type="text" placeholder="e.g., meta-llama/Llama-3.1-8B-Instruct" required />
+                <div class="field-row-2">
+                  <select id="customModality">
+                    <option value="text">Text / LLM / Novel</option>
+                    <option value="image">Image Diffusers</option>
+                    <option value="video">Video Pipeline</option>
+                  </select>
+                  <select id="customQuant">
+                    <option value="4-bit NF4">4-bit NF4 (bitsandbytes)</option>
+                    <option value="4-bit AWQ">4-bit AWQ</option>
+                    <option value="Q5_K_M GGUF">Q5_K_M GGUF</option>
+                    <option value="FP8">FP8 / BF16</option>
+                  </select>
+                </div>
+                <button type="submit" class="btn-secondary">Load Repo onto Colab GPU</button>
+              </form>
+            </div>
+
+            <!-- Right: System Prompt Presets & Sampling -->
+            <div class="subcard">
+              <div class="subcard-header">
+                <strong>System Prompt Presets &amp; Parameters</strong>
+              </div>
+              <div class="stack-form">
+                <label>Active Preset
+                  <select id="configPresetSelect"></select>
+                </label>
+                <div style="display:flex; gap:8px;">
+                  <button id="btnConfigSetDefault" type="button" class="btn-compact btn-star">⭐ Set as Default System Prompt</button>
+                </div>
+                <label>System Prompt Instructions
+                  <textarea id="configPresetPrompt" rows="5"></textarea>
+                </label>
+                <button id="btnSavePresetText" type="button" class="btn-primary">💾 Save Preset Preferences</button>
+
+                <hr class="divider" />
+                <strong>Create New System Preset</strong>
+                <input id="newPresetName" type="text" placeholder="Preset Name (e.g., Dark Fantasy Worldbuilder)" />
+                <textarea id="newPresetPrompt" rows="3" placeholder="System prompt rules and persona..."></textarea>
+                <button id="btnCreatePreset" type="button" class="btn-secondary">+ Save New Preset</button>
+
+                <hr class="divider" />
+                <strong>Inference Sampling Configuration</strong>
+                <div class="field-row-2">
+                  <label>Temperature (<span id="valTemp">0.78</span>)
+                    <input id="sliderTemp" type="range" min="0.1" max="1.5" step="0.02" value="0.78" />
+                  </label>
+                  <label>Top-P (<span id="valTopP">0.92</span>)
+                    <input id="sliderTopP" type="range" min="0.1" max="1.0" step="0.02" value="0.92" />
+                  </label>
+                </div>
+                <div class="field-row-2">
+                  <label>Repetition Penalty
+                    <input id="inputRepPen" type="number" step="0.02" value="1.08" />
+                  </label>
+                  <label>Max New Tokens
+                    <input id="inputMaxTokens" type="number" step="128" value="2048" />
+                  </label>
+                </div>
+                <button id="btnSaveSampling" type="button" class="btn-primary">Apply Sampling Config</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 7. COLAB AUTO-SETUP & 200 CU ORCHESTRATION WIZARD -->
+        <section id="tab-setup" class="workspace-panel">
+          <div class="panel-header">
+            <div>
+              <h2>Colab Zero-Touch Setup &amp; 200 Compute Unit Guard</h2>
+              <p class="panel-subtitle">Configure your modular Colab worker notebooks and protect your 200 CU budget</p>
+            </div>
+            <div style="display:flex; gap: 8px; flex-wrap:wrap;">
+              <a href="/api/colab/notebook?role=text" download="01_text_llm_finetuner_and_worker.ipynb" class="btn-amber" style="text-decoration:none;" title="Fine-Tune Qwen 2.5 with QLoRA & Run Text/Novel Inference">
+                ⬇ Download 01_text_llm_finetuner_and_worker.ipynb 📝
+              </a>
+              <a href="/api/colab/notebook?role=legacy" download="colab_ai_worker.ipynb" class="btn-secondary" style="text-decoration:none;" title="Download original all-in-one worker notebook">
+                ⬇ Legacy All-in-One Worker
+              </a>
+            </div>
+          </div>
+
+          <div class="two-col-config">
+            <div class="subcard">
+              <div class="subcard-header">
+                <strong>Zero-Touch Login &amp; Creator Account Settings</strong>
+              </div>
+              <div class="stack-form">
+                <div class="field-row-2">
+                  <div class="field-group">
+                    <label for="setupCreatorEmail">Creator Account Email</label>
+                    <input id="setupCreatorEmail" type="email" value="creator@colabaistudio.local" />
+                  </div>
+                  <div class="field-group">
+                    <label for="setupCreatorName">Creator Name</label>
+                    <input id="setupCreatorName" type="text" value="AI Creator" />
+                  </div>
+                </div>
+
+                <label class="checkbox-row">
+                  <input id="setupAutoRunToggle" type="checkbox" checked />
+                  <span>Auto-launch &amp; run <code>colab_ai_worker.ipynb</code> immediately on website login</span>
+                </label>
+
+                <div class="field-group">
+                  <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <label for="setupNotebookUrl">Colab Notebook Drive URL</label>
+                    <button id="btnAutoKeySetupNotebook" type="button" class="btn-link" style="font-size:12px; font-weight:600; color:var(--accent-amber);" title="Auto-fill your saved Colab worker notebook URL">
+                      🪄 Auto-Key In URL
+                    </button>
+                  </div>
+                  <input id="setupNotebookUrl" type="url" value="https://colab.research.google.com/drive/1ColabAIStudioWorkerAutoRun" />
+                  <div style="display:flex; justify-content:space-between; margin-top:2px;">
+                    <span class="field-hint">Auto-opened by Colab launcher module</span>
+                    <a id="linkSetupOpenNotebook" href="#" target="_blank" class="btn-link" style="font-size:11.5px; text-decoration:none;">↗ Open in Colab</a>
+                  </div>
+                </div>
+
+                <div class="field-group">
+                  <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <label for="setupTunnelUrl">Cloudflare Reverse Tunnel Endpoint</label>
+                    <button id="btnAutoFetchTunnelSetup" type="button" class="btn-link" style="font-size:12px; font-weight:600; color:var(--accent-cyan);" title="Automatically discover and connect your running Colab GPU tunnel">
+                      📡 Auto-Fetch Link
+                    </button>
+                  </div>
+                  <input id="setupTunnelUrl" type="url" value="https://seo-walker-documentary-mrs.trycloudflare.com" />
+                  <span class="field-hint">Zero-Touch: Colab broadcasts to topic <code>colab_sync_studio_9f4k2x8m</code></span>
+                </div>
+
+                <label>Preferred Colab GPU Hardware Tier
+                  <select id="setupGpuTier">
+                    <option value="T4">NVIDIA Tesla T4 (15 GB VRAM — 1.96 CU/hr)</option>
+                    <option value="L4">NVIDIA L4 (22.5 GB VRAM — 4.82 CU/hr)</option>
+                    <option value="A100">NVIDIA A100 (40 GB VRAM — 13.11 CU/hr)</option>
+                  </select>
+                </label>
+                <button id="btnSaveColabSetup" class="btn-primary">💾 Save Creator Account &amp; Auto-Run Config</button>
+              </div>
+            </div>
+
+            <div class="subcard">
+              <div class="subcard-header">
+                <strong>200 Compute Unit (CU) Balance &amp; Auto-Shutdown</strong>
+              </div>
+              <div class="stack-form">
+                <label>Calibrate Remaining Compute Units (Out of 200 CU)
+                  <input id="setupRemainingCU" type="number" step="0.1" value="186.4" />
+                </label>
+                <label class="checkbox-row">
+                  <input id="setupAutoShutdownQueue" type="checkbox" checked />
+                  <span>Execute <code>runtime.unassign()</code> automatically when Batch Task Queue finishes</span>
+                </label>
+                <button id="btnUpdateCuConfig" class="btn-secondary">Sync Compute Unit Meter</button>
+
+                <hr class="divider" />
+                <strong>Recent Compute Unit Consumption Ledger</strong>
+                <div id="cuHistoryList" class="cu-history-list"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <!-- RIGHT DOCK: SEQUENTIAL BATCH TASK QUEUE -->
+      <aside class="queue-dock">
+        <div class="queue-dock-header">
+          <div>
+            <h3>Batch Task Queue</h3>
+            <p class="queue-sub">Sequential Auto-Runner &amp; VRAM Swapper</p>
+          </div>
+          <label class="switch-pill" title="Automatically run next task when current finishes">
+            <input id="queueAutoRunCheckbox" type="checkbox" checked />
+            <span>Auto-Run</span>
+          </label>
+        </div>
+
+        <div class="queue-quick-actions">
+          <button id="btnQuickBatchDemo" class="btn-compact btn-amber" title="Queue a multi-modal pipeline (Novel Chapter + Concept Image + Safe Agent Audit)">
+            + Queue Multi-Modal Pipeline (3 Tasks)
+          </button>
+          <button id="btnClearCompletedQueue" class="btn-compact btn-secondary">Clear Done</button>
+        </div>
+
+        <!-- Add Custom Task to Queue -->
+        <form id="quickQueueForm" class="quick-queue-form">
+          <div class="field-row-2">
+            <select id="quickQueueType">
+              <option value="chat">Chat Task</option>
+              <option value="novel">Novel Scene</option>
+              <option value="image">Image Render</option>
+              <option value="video">Video Clip</option>
+              <option value="agent">Safe Agent</option>
+            </select>
+            <button type="submit" class="btn-compact btn-primary">+ Enqueue Task</button>
+          </div>
+          <input id="quickQueuePrompt" type="text" placeholder="Enter task prompt for sequential queue..." required />
+        </form>
+
+        <div id="queueStatsBar" class="queue-stats-bar">
+          <span>0 Queued</span>
+          <span>0 Running</span>
+          <span>Est: 0.00 CU</span>
+        </div>
+
+        <div id="queueItemsContainer" class="queue-items-container"></div>
+
+        <div class="queue-footer-guard">
+          <label class="checkbox-row compact">
+            <input id="dockAutoShutdownCheckbox" type="checkbox" checked />
+            <span>Auto-unassign Colab GPU when queue = 0</span>
+          </label>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="toastContainer" class="toast-container"></div>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

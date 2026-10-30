@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Browser Automation Profiles (NEVER commit cookies or session data)
+.colab-browser-profile/
+.colab-chrome-profile/
+.*-profile/
+
+# Local User State & Private Config
+data/
+.env
+.env.*
+
+# Locally Cached Generated Media & Scratch Files
+public/media/
+test_img.jpg
+*.log
+
+# OS Metadata
+.DS_Store
+Thumbs.db
+desktop.ini

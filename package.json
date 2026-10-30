@@ -1,0 +1,13 @@
+{
+  "name": "colab-ai-studio",
+  "version": "1.0.0",
+  "description": "Colab AI Studio & 200 Compute Unit Orchestrator — Auto-run Colab on login, CU Balance Meter, Chat, Novel Studio, Image/Video Generation, Safe Agents, HF Model Manager & Sequential Batch Task Queue",
+  "type": "module",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node server/index.js"
+  },
+  "dependencies": {
+    "playwright-core": "^1.64.1"
+  }
+}
