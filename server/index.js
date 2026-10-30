@@ -1573,17 +1573,21 @@ const server = http.createServer(async (req, res) => {
       try {
         let isAlive = false;
         let modelId = null;
-        try {
-          const controller = new AbortController();
-          const tid = setTimeout(() => controller.abort(), 3500);
-          const pingRes = await fetch(`${testUrl}/health`, { signal: controller.signal });
-          clearTimeout(tid);
-          if (pingRes.ok) {
-            const healthData = await pingRes.json();
-            isAlive = true;
-            modelId = healthData.model?.active_model_id;
-          }
-        } catch (_) {}
+        // Retry up to 3x: new trycloudflare subdomains take ~5s for DNS to propagate
+        for (let attempt = 0; attempt < 3 && !isAlive; attempt++) {
+          if (attempt > 0) await new Promise(r => setTimeout(r, 2500));
+          try {
+            const controller = new AbortController();
+            const tid = setTimeout(() => controller.abort(), 3500);
+            const pingRes = await fetch(`${testUrl}/health`, { signal: controller.signal });
+            clearTimeout(tid);
+            if (pingRes.ok) {
+              const healthData = await pingRes.json();
+              isAlive = true;
+              modelId = healthData.model?.active_model_id;
+            }
+          } catch (_) {}
+        }
 
         if (!isAlive) {
           try {
