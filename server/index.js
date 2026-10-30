@@ -31,7 +31,7 @@ const DEFAULT_STATE = {
   colab: {
     status: 'DISCONNECTED', // DISCONNECTED | STARTING | READY | SHUTTING_DOWN
     autoRunOnLogin: true,
-    notebookUrl: 'https://colab.research.google.com/drive/1ColabAIStudioWorkerAutoRun',
+    notebookUrl: 'https://colab.research.google.com/github/lophiuss/colab-ai-studio/blob/main/colab/01_text_llm_finetuner_and_worker.ipynb',
     tunnelUrl: 'https://colab-worker-t4.trycloudflare.com',
     pairingTopic: 'colab_sync_studio_9f4k2x8m',
     gpuTier: 'T4',
@@ -358,6 +358,9 @@ function loadState() {
       const merged = { ...DEFAULT_STATE, ...parsed };
       if (!merged.colab.pairingTopic || merged.colab.pairingTopic !== 'colab_sync_studio_9f4k2x8m') {
         merged.colab.pairingTopic = 'colab_sync_studio_9f4k2x8m';
+      }
+      if (!merged.colab.notebookUrl || merged.colab.notebookUrl.includes('drive/folders') || merged.colab.notebookUrl.includes('1ColabAIStudioWorkerAutoRun')) {
+        merged.colab.notebookUrl = 'https://colab.research.google.com/github/lophiuss/colab-ai-studio/blob/main/colab/01_text_llm_finetuner_and_worker.ipynb';
       }
 
       // Ensure presets list has all standard presets while preserving any custom ones
