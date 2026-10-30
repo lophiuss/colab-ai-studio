@@ -69,49 +69,58 @@ const DEFAULT_STATE = {
     ]
   },
   models: {
-    hfTokenConfigured: true,
-    hfTokenMasked: 'hf_****************************9aK2',
-    activeTextModel: 'Qwen/Qwen2.5-7B-Instruct',
+    hfTokenConfigured: false,
+    hfTokenMasked: 'Not required (100% Free Open Models)',
+    activeTextModel: 'RichardErkhov/DavidAU_-_L3.2-Rogue-Creative-Instruct-Uncensored-Abliterated-7B-4bits',
     activeImageModel: 'black-forest-labs/FLUX.1-dev',
     activeVideoModel: 'Wan-AI/Wan2.1-T2V-14B',
-    loadedInVramModel: 'Qwen/Qwen2.5-7B-Instruct',
+    loadedInVramModel: 'RichardErkhov/DavidAU_-_L3.2-Rogue-Creative-Instruct-Uncensored-Abliterated-7B-4bits',
     loadedModality: 'text',
     catalog: [
       {
-        id: 'Qwen/Qwen2.5-7B-Instruct',
-        name: 'Qwen 2.5 7B Instruct (4-bit NF4)',
+        id: 'RichardErkhov/DavidAU_-_L3.2-Rogue-Creative-Instruct-Uncensored-Abliterated-7B-4bits',
+        name: 'DavidAU L3.2 Rogue Creative Uncensored Abliterated 7B (Fast 4-bit)',
+        modality: 'text',
+        quantization: 'Pre-Quantized 4-bit NF4',
+        vramMB: 4380,
+        cachedOnDrive: true,
+        description: 'Fastest liberated dark-roast creative & roleplay model by DavidAU (Only 4.38GB download — boots in ~20s on T4).'
+      },
+      {
+        id: 'RichardErkhov/huihui-ai_-_Qwen2.5-7B-Instruct-abliterated-v2-4bits',
+        name: 'Qwen 2.5 7B Instruct Abliterated v2 (Fast 4-bit)',
+        modality: 'text',
+        quantization: 'Pre-Quantized 4-bit NF4',
+        vramMB: 5590,
+        cachedOnDrive: true,
+        description: 'Uncensored/abliterated Qwen 2.5 7B with pre-quantized 4-bit weights for fast loading, chat, and coding.'
+      },
+      {
+        id: 'RichardErkhov/DavidAU_-_L3-DARKER-PLANET-Broken-Land-12.15B-4bits',
+        name: 'DavidAU Darker Planet Broken Land 12B (Dark-Roast 4-bit)',
+        modality: 'text',
+        quantization: 'Pre-Quantized 4-bit NF4',
+        vramMB: 7980,
+        cachedOnDrive: true,
+        description: 'DavidAU Dark-Roast 12.15B powerhouse for atmospheric dark fiction, noir storytelling, and deep prose.'
+      },
+      {
+        id: 'DavidAU/Qwen3-8B-64k-Context-2X-Josiefied-Uncensored',
+        name: 'DavidAU Qwen3 8B 64k Josiefied Uncensored',
         modality: 'text',
         quantization: '4-bit NF4',
-        vramMB: 5600,
-        cachedOnDrive: true,
-        description: 'Primary conversational model active on your Colab GPU (Fast, authentic human dialogue).'
-      },
-      {
-        id: 'Qwen/Qwen2.5-14B-Instruct-AWQ',
-        name: 'Qwen 2.5 14B Instruct (AWQ)',
-        modality: 'text',
-        quantization: '4-bit AWQ',
-        vramMB: 9400,
-        cachedOnDrive: true,
-        description: 'High-reasoning chat, code & agent model tailored for 15GB T4 VRAM.'
-      },
-      {
-        id: 'mistralai/Mistral-Nemo-Instruct-2407',
-        name: 'Mistral Nemo 12B Instruct (GGUF)',
-        modality: 'text',
-        quantization: 'Q5_K_M GGUF',
-        vramMB: 8800,
-        cachedOnDrive: true,
-        description: 'Exceptional creative prose and long-context novel writing (128k context).'
-      },
-      {
-        id: 'deepseek-ai/DeepSeek-R1-Distill-Qwen-14B',
-        name: 'DeepSeek R1 Distill 14B',
-        modality: 'text',
-        quantization: '4-bit NF4',
-        vramMB: 9800,
+        vramMB: 5400,
         cachedOnDrive: false,
-        description: 'Deep chain-of-thought reasoning for complex autonomous agent workflows.'
+        description: '174k+ downloads flagship 64k-context liberated model by DavidAU.'
+      },
+      {
+        id: 'DavidAU/Qwen3-4B-2507-Thinking-heretic-abliterated-uncensored',
+        name: 'DavidAU Qwen3 4B Heretic Abliterated Turbo',
+        modality: 'text',
+        quantization: '4-bit NF4',
+        vramMB: 2800,
+        cachedOnDrive: false,
+        description: 'Ultra-lightweight 4B Heretic Abliterated model (~75 tok/s on Tesla T4).'
       },
       {
         id: 'black-forest-labs/FLUX.1-dev',
@@ -361,6 +370,23 @@ function loadState() {
       }
       if (!merged.colab.notebookUrl || merged.colab.notebookUrl.includes('drive/folders') || merged.colab.notebookUrl.includes('1ColabAIStudioWorkerAutoRun')) {
         merged.colab.notebookUrl = 'https://colab.research.google.com/github/lophiuss/colab-ai-studio/blob/main/colab/01_text_llm_finetuner_and_worker.ipynb';
+      }
+
+      // Sync liberated dark-roast 4-bit models into catalog & upgrade default text model
+      if (merged.models) {
+        const defaultFastModel = 'RichardErkhov/DavidAU_-_L3.2-Rogue-Creative-Instruct-Uncensored-Abliterated-7B-4bits';
+        if (!merged.models.activeTextModel || merged.models.activeTextModel === 'Qwen/Qwen2.5-7B-Instruct' || merged.models.activeTextModel.includes('Qwen3.5-9B')) {
+          merged.models.activeTextModel = defaultFastModel;
+          merged.models.loadedInVramModel = defaultFastModel;
+        }
+        const existingModelIds = new Set((merged.models.catalog || []).map(m => m.id));
+        const newCat = [...DEFAULT_STATE.models.catalog];
+        for (const m of (merged.models.catalog || [])) {
+          if (!newCat.some(d => d.id === m.id) && !m.id.includes('Qwen3.5-9B')) {
+            newCat.push(m);
+          }
+        }
+        merged.models.catalog = newCat;
       }
 
       // Ensure presets list has all standard presets while preserving any custom ones
