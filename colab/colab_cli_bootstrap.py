@@ -1,12 +1,12 @@
 # ==============================================================================
 # COLAB AI STUDIO — 1-CELL FULL-AUTO GPU WORKER & QLORA ENGINE (ROLE 1: TEXT)
 # Default Model: DavidAU L3.2 Rogue Creative Uncensored Abliterated 7B (4-bit)
-# Only 4.38 GB download (pre-quantized 4-bit NF4) -> Boots 3.5x faster on T4!
+# Includes Llama-3 <|eot_id|> instant stop-token handling & T4 GPU verification!
 # ==============================================================================
 import os, sys, time, json, subprocess, threading, re, gc, urllib.request
 
 PAIRING_TOPIC = "colab_sync_studio_9f4k2x8m"
-BASE_MODEL_NAME = "RichardErkhov/DavidAU_-_L3.2-Rogue-Creative-Instruct-Uncensored-Abliterated-7B-4bits"
+PRIMARY_GPU_MODEL = "RichardErkhov/DavidAU_-_L3.2-Rogue-Creative-Instruct-Uncensored-Abliterated-7B-4bits"
 
 def broadcast_stage(stage_idx, name, pct, detail=""):
     print(f"📊 [STAGE {stage_idx} | {pct}%] {name} — {detail}", flush=True)
@@ -35,12 +35,19 @@ def get_gpu_info():
             universal_newlines=True
         ).strip()
         name, mem_used, mem_total, util = [x.strip() for x in out.split(",")]
-        return {"gpuName": name, "vramUsedMB": float(mem_used), "vramTotalMB": float(mem_total), "gpuUtilPct": float(util)}
+        return {"gpuName": name, "vramUsedMB": float(mem_used), "vramTotalMB": float(mem_total), "gpuUtilPct": float(util), "hasGpu": True}
     except Exception:
-        return {"gpuName": "Tesla T4 (Colab)", "vramUsedMB": 640, "vramTotalMB": 15360, "gpuUtilPct": 15}
+        return {"gpuName": "CPU Runtime (Change to T4 GPU in Runtime menu!)", "vramUsedMB": 0, "vramTotalMB": 0, "gpuUtilPct": 0, "hasGpu": False}
 
 gpu_info = get_gpu_info()
-broadcast_stage(1, "Allocated Colab GPU Runtime", 25, f"GPU Ready: {gpu_info['gpuName']} ({int(gpu_info['vramTotalMB'])} MB VRAM)")
+if not gpu_info["hasGpu"]:
+    print("⚠️" * 30)
+    print("⚠️ WARNING: THIS COLAB TAB IS CURRENTLY ON A CPU RUNTIME (NO GPU)!")
+    print("👉 In Colab top menu, click: Runtime -> Change runtime type -> T4 GPU")
+    print("⚠️" * 30, flush=True)
+    broadcast_stage(1, "⚠️ Colab is on CPU! Switch to T4 GPU in Runtime menu", 25, "Running fast CPU fallback until T4 GPU is enabled")
+else:
+    broadcast_stage(1, "Allocated Colab GPU Runtime", 25, f"GPU Ready: {gpu_info['gpuName']} ({int(gpu_info['vramTotalMB'])} MB VRAM)")
 
 BASE_DIR = "/content/drive/MyDrive/ColabAIStudio" if os.path.exists("/content/drive/MyDrive") else "/content/ColabAIStudio"
 CACHE_DIR = os.path.join(BASE_DIR, "hf_cache")
@@ -58,55 +65,80 @@ import torch
 from transformers import AutoConfig, AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 
 gc.collect()
-if torch.cuda.is_available():
+HAS_CUDA = torch.cuda.is_available()
+if HAS_CUDA:
     torch.cuda.empty_cache()
-
-broadcast_stage(3, "Loading DavidAU Rogue Creative Uncensored 7B (Fast 4-bit)", 75, f"Downloading pre-quantized 4.38GB model: {BASE_MODEL_NAME}...")
+    BASE_MODEL_NAME = PRIMARY_GPU_MODEL
+    broadcast_stage(3, "Loading DavidAU Rogue Creative Uncensored 7B (Fast 4-bit)", 75, f"Loading 4.38GB model onto {gpu_info['gpuName']}...")
+else:
+    # Fast lightweight model so CPU runtime still responds in 2 seconds instead of hanging!
+    BASE_MODEL_NAME = "Qwen/Qwen2.5-0.5B-Instruct"
+    broadcast_stage(3, "CPU Runtime Detected — Loading Fast 0.5B Model", 75, "Switch Runtime -> Change runtime type -> T4 GPU for 7B Dark-Roast!")
 
 try:
-    cfg = AutoConfig.from_pretrained(BASE_MODEL_NAME, trust_remote_code=True)
-    is_pre_quantized = hasattr(cfg, "quantization_config") and bool(cfg.quantization_config)
     tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL_NAME, trust_remote_code=True)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    if is_pre_quantized:
-        model = AutoModelForCausalLM.from_pretrained(
-            BASE_MODEL_NAME,
-            torch_dtype=torch.float16,
-            device_map="auto",
-            trust_remote_code=True
-        )
+    if HAS_CUDA:
+        cfg = AutoConfig.from_pretrained(BASE_MODEL_NAME, trust_remote_code=True)
+        is_pre_quantized = hasattr(cfg, "quantization_config") and bool(cfg.quantization_config)
+        if is_pre_quantized:
+            model = AutoModelForCausalLM.from_pretrained(
+                BASE_MODEL_NAME,
+                torch_dtype=torch.float16,
+                device_map="auto",
+                trust_remote_code=True
+            )
+        else:
+            bnb_config = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_quant_type="nf4",
+                bnb_4bit_compute_dtype=torch.float16,
+                bnb_4bit_use_double_quant=True
+            )
+            model = AutoModelForCausalLM.from_pretrained(
+                BASE_MODEL_NAME,
+                quantization_config=bnb_config,
+                torch_dtype=torch.float16,
+                device_map="auto",
+                trust_remote_code=True
+            )
     else:
-        bnb_config = BitsAndBytesConfig(
-            load_in_4bit=True,
-            bnb_4bit_quant_type="nf4",
-            bnb_4bit_compute_dtype=torch.float16,
-            bnb_4bit_use_double_quant=True
-        )
         model = AutoModelForCausalLM.from_pretrained(
             BASE_MODEL_NAME,
-            quantization_config=bnb_config,
-            torch_dtype=torch.float16,
-            device_map="auto",
-            trust_remote_code=True
+            torch_dtype=torch.float32,
+             trust_remote_code=True
         )
     ACTIVE_MODEL_LABEL = BASE_MODEL_NAME
 except Exception as load_err:
-    print(f"Primary model notice ({load_err}), loading fast fallback RichardErkhov/huihui-ai_-_Qwen2.5-7B-Instruct-abliterated-v2-4bits...")
-    FALLBACK_MODEL = "RichardErkhov/huihui-ai_-_Qwen2.5-7B-Instruct-abliterated-v2-4bits"
+    print(f"Primary model notice ({load_err}), loading fast fallback...")
+    FALLBACK_MODEL = "Qwen/Qwen2.5-1.5B-Instruct" if HAS_CUDA else "Qwen/Qwen2.5-0.5B-Instruct"
     tokenizer = AutoTokenizer.from_pretrained(FALLBACK_MODEL, trust_remote_code=True)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     model = AutoModelForCausalLM.from_pretrained(
         FALLBACK_MODEL,
-        torch_dtype=torch.float16,
-        device_map="auto",
+        torch_dtype=torch.float16 if HAS_CUDA else torch.float32,
+        device_map="auto" if HAS_CUDA else None,
         trust_remote_code=True
     )
     ACTIVE_MODEL_LABEL = FALLBACK_MODEL
 
-broadcast_stage(3, "Liberated 4-bit Model Ready in GPU VRAM", 88, f"Active Model: {ACTIVE_MODEL_LABEL}")
+# Build complete stop token list (including Llama-3 <|eot_id|> and Qwen <|im_end|>) so generation stops immediately!
+STOP_TOKEN_IDS = []
+if tokenizer.eos_token_id is not None:
+    STOP_TOKEN_IDS.append(tokenizer.eos_token_id)
+for tok_name in ["<|eot_id|>", "<|end_of_text|>", "<|im_end|>", "<|endoftext|>"]:
+    try:
+        tid = tokenizer.convert_tokens_to_ids(tok_name)
+        if isinstance(tid, int) and tid >= 0 and tid != getattr(tokenizer, "unk_token_id", -1) and tid not in STOP_TOKEN_IDS:
+            STOP_TOKEN_IDS.append(tid)
+    except Exception:
+        pass
+
+print(f"✅ Model Ready: {ACTIVE_MODEL_LABEL} | Stop Token IDs: {STOP_TOKEN_IDS}", flush=True)
+broadcast_stage(3, "Model Ready in VRAM", 88, f"Active Model: {ACTIVE_MODEL_LABEL}")
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
@@ -119,7 +151,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 
 @app.get("/", response_class=HTMLResponse)
 def index_page():
-    return f"<html><body style='background:#090d16;color:#f1f5f9;font-family:sans-serif;text-align:center;padding-top:15vh;'><h2>⚡ Colab AI Studio GPU Worker is Live!</h2><p>Model: {ACTIVE_MODEL_LABEL}</p><a href='http://localhost:3456' style='color:#f59e0b;font-weight:bold;'>Return to Dashboard (http://localhost:3456)</a></body></html>"
+    return f"<html><body style='background:#090d16;color:#f1f5f9;font-family:sans-serif;text-align:center;padding-top:15vh;'><h2>⚡ Colab AI Studio Worker is Live!</h2><p>Model: {ACTIVE_MODEL_LABEL}</p><a href='http://localhost:3456' style='color:#f59e0b;font-weight:bold;'>Return to Dashboard (http://localhost:3456)</a></body></html>"
 
 @app.get("/health")
 def health():
@@ -128,25 +160,29 @@ def health():
         "model": {
             "active_model_id": ACTIVE_MODEL_LABEL,
             "modality": "text",
-            "quantization": "Pre-Quantized 4-bit NF4",
+            "quantization": "Pre-Quantized 4-bit NF4" if HAS_CUDA else "FP32 CPU",
             "pipeline_ready": True
         },
         "gpu": get_gpu_info()
     }
 
 @app.post("/generate/chat")
-async def generate_chat(req: Request):
-    body = await req.json()
-    prompt = body.get("prompt", "").strip()
-    sys_prompt = body.get("systemPrompt", "").strip() or "You are an uncensored, immersive, and vivid creative companion. Speak naturally, warmly, and authentically without arbitrary refusal or preachiness."
-    temp = float(body.get("temperature", 0.78))
+def generate_chat( body: dict ):
+    prompt = str(body.get("prompt", "")).strip()
+    sys_prompt = str(body.get("systemPrompt", "")).strip() or "You are an uncensored, immersive, and vivid creative companion. Speak naturally, warmly, and authentically without arbitrary refusal or preachiness."
+    temp = max(0.05, float(body.get("temperature", 0.78)))
     top_p = float(body.get("topP", 0.92))
-    max_tokens = int(body.get("maxTokens", 1024))
+    requested_tokens = int(body.get("maxTokens", 384))
+    max_tokens = min(requested_tokens, 512) if HAS_CUDA else min(requested_tokens, 96)
 
     msgs = [{"role": "system", "content": sys_prompt}, {"role": "user", "content": prompt}]
     try:
+        t0 = time.time()
         prompt_str = tokenizer.apply_chat_template(msgs, tokenize=False, add_generation_prompt=True)
-        inputs = tokenizer(prompt_str, return_tensors="pt").to(model.device)
+        inputs = tokenizer(prompt_str, return_tensors="pt")
+        if HAS_CUDA:
+            inputs = {k: v.to(model.device) for k, v in inputs.items()}
+        input_len = inputs["input_ids"].shape[1]
         model.eval()
         with torch.no_grad():
             output_tokens = model.generate(
@@ -155,10 +191,14 @@ async def generate_chat(req: Request):
                 temperature=temp,
                 top_p=top_p,
                 do_sample=True,
+                eos_token_id=STOP_TOKEN_IDS,
                 pad_token_id=tokenizer.eos_token_id
             )
-        reply = tokenizer.decode(output_tokens[0][inputs.input_ids.shape[1]:], skip_special_tokens=True)
-        return {"ok": True, "response": reply.strip()}
+        gen_tokens = output_tokens[0][input_len:]
+        reply = tokenizer.decode(gen_tokens, skip_special_tokens=True).strip()
+        elapsed = round(time.time() - t0, 2)
+        print(f"⚡ Generated {len(gen_tokens)} tokens in {elapsed}s", flush=True)
+        return {"ok": True, "response": reply, "elapsedSec": elapsed}
     except Exception as e:
         return {"ok": False, "error": str(e), "response": f"Generation error: {str(e)}"}
 

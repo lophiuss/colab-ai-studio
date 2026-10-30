@@ -409,6 +409,9 @@ function loadState() {
 
       // Default & active preset resolution
       merged.presets.defaultPresetId = merged.presets.defaultPresetId || 'preset-natural';
+      if (merged.presets.sampling && merged.presets.sampling.maxTokens > 512) {
+        merged.presets.sampling.maxTokens = 512;
+      }
       // If user had preset-architect set by default or unselected, default to preset-natural
       if (!merged.presets.activePresetId || merged.presets.activePresetId === 'preset-architect') {
         merged.presets.activePresetId = merged.presets.defaultPresetId;

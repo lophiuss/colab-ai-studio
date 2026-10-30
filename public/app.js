@@ -804,12 +804,12 @@ document.addEventListener('DOMContentLoaded', async () => {
           await navigator.clipboard.writeText(data.command);
           await apiPost('/api/colab/stage', {
             stageIndex: 1,
-            stageName: '1-Line Colab CLI Copied — Waiting for Cell Execution',
+            stageName: 'Opening 1-Cell T4 GPU Worker Notebook on Colab',
             progress: 18,
-            detail: 'Press Ctrl+V then Shift+Enter in the opened Colab tab! Live progress will stream here automatically.'
+            detail: 'Click the Play (▶) button or press Shift+Enter in the opened Colab tab! (T4 GPU is pre-selected).'
           });
-          window.open('https://colab.research.google.com/#create=true', '_blank');
-          showToast('📋 1-Line Colab CLI copied! Press Ctrl+V and Shift+Enter in the new Colab tab.');
+          window.open('https://colab.research.google.com/github/lophiuss/colab-ai-studio/blob/main/colab/gpu_one_click_worker.ipynb', '_blank');
+          showToast('🚀 Opened 1-Cell T4 GPU Notebook! Click Play (▶) or Shift+Enter in Colab.');
           await fetchState();
         }
       } catch (e) {
