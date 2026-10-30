@@ -73,6 +73,7 @@ try:
     if is_pre_quantized:
         model = AutoModelForCausalLM.from_pretrained(
             BASE_MODEL_NAME,
+            torch_dtype=torch.float16,
             device_map="auto",
             trust_remote_code=True
         )
@@ -86,6 +87,7 @@ try:
         model = AutoModelForCausalLM.from_pretrained(
             BASE_MODEL_NAME,
             quantization_config=bnb_config,
+            torch_dtype=torch.float16,
             device_map="auto",
             trust_remote_code=True
         )
@@ -98,6 +100,7 @@ except Exception as load_err:
         tokenizer.pad_token = tokenizer.eos_token
     model = AutoModelForCausalLM.from_pretrained(
         FALLBACK_MODEL,
+        torch_dtype=torch.float16,
         device_map="auto",
         trust_remote_code=True
     )
@@ -193,3 +196,10 @@ if tunnel_url:
         print(f"📡 [Auto-Fetch] Tunnel URL announced to topic '{PAIRING_TOPIC}'! Your local website is now LIVE!", flush=True)
     except Exception as e:
         print(f"Dispatch notice: {e}", flush=True)
+
+print("🟢 GPU WORKER ACTIVE — Keep this cell running while using http://localhost:3456 !", flush=True)
+try:
+    while True:
+        time.sleep(60)
+except KeyboardInterrupt:
+    print("⏹️ GPU Worker stopped by user.", flush=True)
