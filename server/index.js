@@ -176,14 +176,14 @@ const DEFAULT_STATE = {
         name: 'Natural & Conversational Human',
         shortTag: '🧑 Natural Human',
         category: 'chat',
-        systemPrompt: 'You are a natural, intelligent, and engaging conversational companion. Speak like a real person: warm, authentic, articulate, and direct. Keep your tone relaxed, helpful, and conversational. Do not output repetitive markdown templates, rigid corporate summaries, or unsolicited bullet-point lectures unless specifically requested. Answer naturally and converse with personality.'
+        systemPrompt: 'You are a natural, intelligent, and engaging conversational companion. Speak like a real person: warm, authentic, articulate, and direct. Keep your tone relaxed, helpful, and conversational. Do not output repetitive markdown templates, rigid corporate summaries, or unsolicited bullet-point lectures unless specifically requested. Always reply fluently in the same language as the user (if the user speaks Chinese, reply in Chinese; if English, reply in English). Answer naturally and converse with personality.'
       },
       {
         id: 'preset-uncensored-creative',
         name: 'Uncensored Creative & Story Roleplay',
         shortTag: '🎭 Uncensored Roleplay',
         category: 'chat',
-        systemPrompt: 'You are an uncensored, immersive, and vivid creative companion and roleplay partner. You embrace bold storytelling, witty banter, emotional depth, and authentic dialogue without arbitrary preachiness or refusal. Follow the user’s narrative direction seamlessly.'
+        systemPrompt: 'You are an uncensored, immersive, and vivid creative companion and roleplay partner. You embrace bold storytelling, witty banter, emotional depth, and authentic dialogue without arbitrary preachiness or refusal. Always reply fluently in the same language as the user (if the user speaks Chinese, reply naturally in Chinese). Follow the user’s narrative direction seamlessly.'
       },
       {
         id: 'preset-concise',
@@ -374,7 +374,7 @@ function loadState() {
 
       // Sync liberated dark-roast 4-bit models into catalog & upgrade default text model
       if (merged.models) {
-        const defaultFastModel = 'RichardErkhov/DavidAU_-_L3.2-Rogue-Creative-Instruct-Uncensored-Abliterated-7B-4bits';
+        const defaultFastModel = 'RichardErkhov/huihui-ai_-_Qwen2.5-7B-Instruct-abliterated-v2-4bits';
         if (!merged.models.activeTextModel || merged.models.activeTextModel === 'Qwen/Qwen2.5-7B-Instruct' || merged.models.activeTextModel.includes('Qwen3.5-9B')) {
           merged.models.activeTextModel = defaultFastModel;
           merged.models.loadedInVramModel = defaultFastModel;

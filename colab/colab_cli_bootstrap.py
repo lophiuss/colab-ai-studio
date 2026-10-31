@@ -6,7 +6,9 @@
 import os, sys, time, json, subprocess, threading, re, gc, urllib.request
 
 PAIRING_TOPIC = "colab_sync_studio_9f4k2x8m"
-PRIMARY_GPU_MODEL = "RichardErkhov/DavidAU_-_L3.2-Rogue-Creative-Instruct-Uncensored-Abliterated-7B-4bits"
+# @markdown ### 🤖 Select AI Model (Default: Qwen 2.5 Abliterated - Fluent Chinese & English Uncensored)
+MODEL_CHOICE = "RichardErkhov/huihui-ai_-_Qwen2.5-7B-Instruct-abliterated-v2-4bits" #@param ["RichardErkhov/huihui-ai_-_Qwen2.5-7B-Instruct-abliterated-v2-4bits", "Qwen/Qwen2.5-7B-Instruct", "RichardErkhov/DavidAU_-_L3.2-Rogue-Creative-Instruct-Uncensored-Abliterated-7B-4bits"]
+PRIMARY_GPU_MODEL = MODEL_CHOICE
 
 def broadcast_stage(stage_idx, name, pct, detail=""):
     print(f"📊 [STAGE {stage_idx} | {pct}%] {name} — {detail}", flush=True)
@@ -70,7 +72,7 @@ HAS_CUDA = torch.cuda.is_available()
 if HAS_CUDA:
     torch.cuda.empty_cache()
     BASE_MODEL_NAME = PRIMARY_GPU_MODEL
-    broadcast_stage(3, "Loading DavidAU Rogue Creative Uncensored 7B (Fast 4-bit)", 75, f"Loading 4.38GB model onto {gpu_info['gpuName']}...")
+    broadcast_stage(3, f"Loading {BASE_MODEL_NAME.split('/')[-1]}", 75, f"Loading model onto {gpu_info['gpuName']}...")
 else:
     # Fast lightweight model so CPU runtime still responds in 2 seconds instead of hanging!
     BASE_MODEL_NAME = "Qwen/Qwen2.5-0.5B-Instruct"
