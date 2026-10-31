@@ -1010,30 +1010,60 @@ async function createGeneratedImage(prompt, options = {}) {
   const filePath = path.join(mediaDir, fileName);
   let localUrl = `/media/${fileName}`;
 
-  // Download real image directly on the server (trying fast turbo first, then direct /p/ endpoint, then flux)
-  const candidateUrls = [
-    `https://image.pollinations.ai/prompt/${encodeURIComponent(cleanPrompt)}?width=${width}&height=${height}&model=turbo&seed=${seed}&nologo=true`,
-    `https://pollinations.ai/p/${encodeURIComponent(cleanPrompt)}?width=${width}&height=${height}&seed=${seed}`,
-    `https://image.pollinations.ai/prompt/${encodeURIComponent(cleanPrompt)}?width=${width}&height=${height}&model=flux&seed=${seed}&nologo=true`
-  ];
-
   let downloaded = false;
-  for (const u of candidateUrls) {
+
+  // 1. Primary: Real GPU generation on Colab A100 Diffusers!
+  if (state.colab.status === 'READY' && state.colab.tunnelUrl) {
     try {
-      const controller = new AbortController();
-      const tid = setTimeout(() => controller.abort(), 12000);
-      const res = await fetch(u, { signal: controller.signal });
-      clearTimeout(tid);
-      if (res.ok && res.headers.get('content-type')?.includes('image')) {
-        const arrayBuf = await res.arrayBuffer();
-        if (arrayBuf.byteLength > 1000) {
-          fs.writeFileSync(filePath, Buffer.from(arrayBuf));
+      const gpuCtrl = new AbortController();
+      const gpuTid = setTimeout(() => gpuCtrl.abort(), 35000);
+      const gpuRes = await fetch(`${state.colab.tunnelUrl}/generate/image`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: cleanPrompt, width, height, steps: 4 }),
+        signal: gpuCtrl.signal
+      });
+      clearTimeout(gpuTid);
+      if (gpuRes.ok) {
+        const gpuData = await gpuRes.json();
+        if (gpuData && gpuData.ok && gpuData.image_b64) {
+          fs.writeFileSync(filePath, Buffer.from(gpuData.image_b64, 'base64'));
           downloaded = true;
-          break;
+          console.log(`🎨 [Colab A100 GPU] Generated real image in ${gpuData.elapsedSec || 1}s!`);
         }
       }
     } catch (e) {
-      console.warn('Image fetch attempt failed:', e.message);
+      console.warn('Colab GPU image generation notice:', e.message);
+    }
+  }
+
+  // 2. High-speed external fallback with real browser User-Agent
+  if (!downloaded) {
+    const candidateUrls = [
+      `https://image.pollinations.ai/prompt/${encodeURIComponent(cleanPrompt)}?width=${width}&height=${height}&model=flux&seed=${seed}&nologo=true`,
+      `https://image.pollinations.ai/prompt/${encodeURIComponent(cleanPrompt)}?width=${width}&height=${height}&model=turbo&seed=${seed}&nologo=true`
+    ];
+    for (const u of candidateUrls) {
+      try {
+        const controller = new AbortController();
+        const tid = setTimeout(() => controller.abort(), 12000);
+        const res = await fetch(u, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+          },
+          signal: controller.signal
+        });
+        clearTimeout(tid);
+        if (res.ok && res.headers.get('content-type')?.includes('image')) {
+          const arrayBuf = await res.arrayBuffer();
+          // Filter out the known rate limit banner files
+          if (arrayBuf.byteLength > 2000 && ![94175, 94177, 83327, 80743].includes(arrayBuf.byteLength)) {
+            fs.writeFileSync(filePath, Buffer.from(arrayBuf));
+            downloaded = true;
+            break;
+          }
+        }
+      } catch (e) {}
     }
   }
 
