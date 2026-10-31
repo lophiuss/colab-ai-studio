@@ -417,26 +417,15 @@ function loadState() {
         merged.presets.activePresetId = merged.presets.defaultPresetId;
       }
 
-      // Auto-migrate legacy images to local cached media or high-availability endpoints
+      // Keep only successfully rendered real images that exist on disk
       if (Array.isArray(merged.images)) {
-        merged.images = merged.images.filter(img => img.prompt && img.prompt.trim() !== 'jnjn' && (!img.imageUrl || !img.imageUrl.includes('pollinations.ai')));
+        merged.images = merged.images.filter(img => {
+          if (!img.prompt || img.prompt.trim() === 'jnjn') return false;
+          const localJpg = path.join(PUBLIC_DIR, 'media', `${img.id}.jpg`);
+          return fs.existsSync(localJpg) && fs.statSync(localJpg).size > 5000;
+        });
         merged.images.forEach(img => {
-          const localFile = path.join(PUBLIC_DIR, 'media', `${img.id}.jpg`);
-          if (fs.existsSync(localFile)) {
-            img.imageUrl = `/media/${img.id}.jpg`;
-          } else if (!img.imageUrl || img.imageUrl.includes('image.pollinations.ai')) {
-            const seed = img.seed || Math.floor(10000000 + Math.random() * 90000000);
-            let w = 1024, h = 576;
-            if (img.aspectRatio === '1:1') { w = 1024; h = 1024; }
-            else if (img.aspectRatio === '3:4') { w = 768; h = 1024; }
-            img.width = w;
-            img.height = h;
-            const svgPath = path.join(PUBLIC_DIR, 'media', `${img.id}.svg`);
-            if (!fs.existsSync(svgPath)) {
-              fs.writeFileSync(svgPath, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}"><rect width="100%" height="100%" fill="#111827"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#64748b" font-family="sans-serif" font-size="20">${escapeXml(img.prompt.slice(0, 32))}</text></svg>`, 'utf8');
-            }
-            img.imageUrl = `/media/${img.id}.svg`;
-          }
+          img.imageUrl = `/media/${img.id}.jpg`;
         });
       }
 
