@@ -471,8 +471,19 @@ function renderImageStudio() {
   }).join('');
 
   grid.querySelectorAll('.btn-view-image').forEach(btn => {
-    btn.onclick = () => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
       openLightbox(btn.dataset.url, btn.dataset.prompt, btn.dataset.meta, btn.dataset.filename);
+    };
+  });
+
+  // Clicking directly on the image thumbnail also opens the lightbox immediately
+  grid.querySelectorAll('.media-visual-wrap').forEach(wrap => {
+    wrap.onclick = () => {
+      const btnView = wrap.querySelector('.btn-view-image');
+      if (btnView) {
+        openLightbox(btnView.dataset.url, btnView.dataset.prompt, btnView.dataset.meta, btnView.dataset.filename);
+      }
     };
   });
 
@@ -1043,14 +1054,29 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const btnToggleQueue = document.getElementById('btnToggleQueueDock');
   const btnCloseQueue = document.getElementById('btnCloseQueueDock');
+
+  // Check saved preference: default is hidden so thumbnails and gallery take full width
+  const savedQueue = localStorage.getItem('colab_queue_visible');
+  if (savedQueue === 'true') {
+    workbenchGrid.classList.remove('queue-hidden');
+    btnToggleQueue?.classList.add('active');
+  } else {
+    workbenchGrid.classList.add('queue-hidden');
+    btnToggleQueue?.classList.remove('active');
+  }
+
   if (btnToggleQueue && workbenchGrid) {
     btnToggleQueue.addEventListener('click', () => {
-      workbenchGrid.classList.toggle('queue-hidden');
+      const isHidden = workbenchGrid.classList.toggle('queue-hidden');
+      localStorage.setItem('colab_queue_visible', String(!isHidden));
+      btnToggleQueue.classList.toggle('active', !isHidden);
     });
   }
   if (btnCloseQueue && workbenchGrid) {
     btnCloseQueue.addEventListener('click', () => {
       workbenchGrid.classList.add('queue-hidden');
+      localStorage.setItem('colab_queue_visible', 'false');
+      btnToggleQueue?.classList.remove('active');
     });
   }
 
