@@ -419,7 +419,7 @@ function loadState() {
 
       // Auto-migrate legacy images to local cached media or high-availability endpoints
       if (Array.isArray(merged.images)) {
-        merged.images = merged.images.filter(img => img.prompt && img.prompt.trim() !== 'jnjn');
+        merged.images = merged.images.filter(img => img.prompt && img.prompt.trim() !== 'jnjn' && (!img.imageUrl || !img.imageUrl.includes('pollinations.ai')));
         merged.images.forEach(img => {
           const localFile = path.join(PUBLIC_DIR, 'media', `${img.id}.jpg`);
           if (fs.existsSync(localFile)) {
@@ -489,6 +489,7 @@ function archiveActiveChat() {
 }
 
 function saveState() {
+  if (Array.isArray(state.images)) state.images = state.images.filter(img => !img.imageUrl || !img.imageUrl.includes('pollinations.ai'));
   try {
     fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), 'utf-8');
   } catch (e) {
