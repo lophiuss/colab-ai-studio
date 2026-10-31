@@ -2583,3 +2583,31 @@ button:active {
   70% { transform: scale(1.22) rotate(2deg) translateY(6px); }
   100% { transform: scale(1) rotate(0deg); }
 }
+
+
+
+/* GLOBAL POLISHED SCROLLBARS */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(2, 6, 23, 0.4);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* RESPONSIVE FLUID LAYOUT ADJUSTMENTS */
+@media (max-width: 1100px) {
+  .top-center-stats { display: none !important; }
+}
+@media (max-width: 850px) {
+  .workbench-grid { grid-template-columns: 1fr !important; }
+  .nav-rail { display: none !important; }
+  .queue-dock { display: none !important; }
+}
