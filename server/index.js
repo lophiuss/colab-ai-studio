@@ -431,7 +431,11 @@ function loadState() {
             else if (img.aspectRatio === '3:4') { w = 768; h = 1024; }
             img.width = w;
             img.height = h;
-            img.imageUrl = `https://pollinations.ai/p/${encodeURIComponent(img.prompt)}?width=${w}&height=${h}&seed=${seed}`;
+            const svgPath = path.join(PUBLIC_DIR, 'media', `${img.id}.svg`);
+            if (!fs.existsSync(svgPath)) {
+              fs.writeFileSync(svgPath, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}"><rect width="100%" height="100%" fill="#111827"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#64748b" font-family="sans-serif" font-size="20">${escapeXml(img.prompt.slice(0, 32))}</text></svg>`, 'utf8');
+            }
+            img.imageUrl = `/media/${img.id}.svg`;
           }
         });
       }
