@@ -140,17 +140,7 @@ function renderPersonaDeck() {
       const isDef = p.id === defaultPresetId;
       return `<option value="${p.id}" ${p.id === presets.activePresetId ? 'selected' : ''}>${isDef ? '⭐ ' : ''}${escapeHtml(p.name)}${isDef ? ' (Default)' : ''}</option>`;
     }).join('');
-  // Image card delete handler
-  grid.querySelectorAll('.btn-delete-image').forEach(btn => {
-    btn.onclick = async (e) => {
-      e.stopPropagation();
-      const id = btn.dataset.imgId;
-      await apiPost('/api/studio/image/delete', { id });
-      if (appState) appState.images = appState.images.filter(img => img.id !== id);
-      renderImageStudio();
-      showToast('Image deleted');
-    };
-  });
+
 
     if (chatSelect.innerHTML !== optionsHtml) {
       chatSelect.innerHTML = optionsHtml;
@@ -431,6 +421,19 @@ function renderImageStudio() {
       showToast('Prompt copied to clipboard!');
     };
   });
+
+  grid.querySelectorAll('.btn-delete-image').forEach(btn => {
+    btn.onclick = async (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.imgId;
+      await apiPost('/api/studio/image/delete', { id });
+      if (appState) appState.images = appState.images.filter(img => img.id !== id);
+      grid.dataset.lastSig = ''; // Force re-render
+      renderImageStudio();
+      showToast('Image deleted');
+    };
+  });
+
 }
 
 const videoPlaybackTimers = new Map();
