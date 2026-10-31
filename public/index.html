@@ -180,8 +180,10 @@
           <button id="btnCloseLightbox" type="button" class="btn-compact btn-secondary" style="font-size:16px;">✕</button>
         </div>
       </div>
-      <div class="lightbox-body">
+      <div class="lightbox-body" style="position:relative; display:flex; align-items:center; justify-content:center;">
+        <button id="btnLightboxPrev" class="lightbox-nav-btn prev" title="Previous photo (Left arrow key)">◀</button>
         <img id="lightboxImage" class="lightbox-media-img" src="" alt="Full preview" />
+        <button id="btnLightboxNext" class="lightbox-nav-btn next" title="Next photo (Right arrow key)">▶</button>
       </div>
       <div class="lightbox-footer">
         <span id="lightboxMeta" class="mono-meta">1024x576 · FLUX.1-dev</span>

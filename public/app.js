@@ -608,7 +608,26 @@ function renderVideoStudio() {
   });
 }
 
-function openLightbox(url, prompt, meta, downloadFilename = 'render.jpg') {
+let currentLightboxIndex = -1;
+
+function getLightboxImageList() {
+  if (!appState || !Array.isArray(appState.images)) return [];
+  return appState.images.filter(img => img.imageUrl && !img.imageUrl.includes('placeholder'));
+}
+
+function updateLightboxView(index) {
+  const list = getLightboxImageList();
+  if (!list.length) return;
+  if (index < 0) index = list.length - 1;
+  if (index >= list.length) index = 0;
+  currentLightboxIndex = index;
+
+  const cur = list[index];
+  const url = cur.imageUrl || `/media/${cur.id}.svg`;
+  const prompt = cur.prompt || 'Generated Visual';
+  const meta = `${cur.aspectRatio || '16:9'} · Seed ${cur.seed} · ${(cur.model || 'Diffusers').split('/').pop()}`;
+  const downloadFilename = (typeof getDescriptiveFilename === 'function') ? getDescriptiveFilename(cur) : `${cur.id}.jpg`;
+
   const modal = document.getElementById('mediaLightboxModal');
   const img = document.getElementById('lightboxImage');
   const promptEl = document.getElementById('lightboxPrompt');
@@ -616,11 +635,48 @@ function openLightbox(url, prompt, meta, downloadFilename = 'render.jpg') {
   const downloadLink = document.getElementById('btnLightboxDownload');
 
   img.src = url;
-  promptEl.textContent = prompt || 'Generated Visual';
-  metaEl.textContent = meta || 'FLUX 1024x576';
+  promptEl.textContent = prompt;
+  metaEl.textContent = `${meta} · [${index + 1} / ${list.length}]`;
   downloadLink.href = url;
   downloadLink.download = downloadFilename;
+
   modal.classList.remove('hidden');
+}
+
+function openLightbox(url, prompt, meta, downloadFilename = 'render.jpg') {
+  const list = getLightboxImageList();
+  const foundIdx = list.findIndex(i => i.imageUrl === url || `/media/${i.id}.jpg` === url || `/media/${i.id}.svg` === url);
+  if (foundIdx !== -1) {
+    updateLightboxView(foundIdx);
+  } else {
+    currentLightboxIndex = -1;
+    const modal = document.getElementById('mediaLightboxModal');
+    const img = document.getElementById('lightboxImage');
+    const promptEl = document.getElementById('lightboxPrompt');
+    const metaEl = document.getElementById('lightboxMeta');
+    const downloadLink = document.getElementById('btnLightboxDownload');
+
+    img.src = url;
+    promptEl.textContent = prompt || 'Generated Visual';
+    metaEl.textContent = meta || 'FLUX 1024x576';
+    downloadLink.href = url;
+    downloadLink.download = downloadFilename;
+    modal.classList.remove('hidden');
+  }
+}
+
+function prevLightboxImage() {
+  const list = getLightboxImageList();
+  if (!list.length) return;
+  const newIdx = currentLightboxIndex <= 0 ? list.length - 1 : currentLightboxIndex - 1;
+  updateLightboxView(newIdx);
+}
+
+function nextLightboxImage() {
+  const list = getLightboxImageList();
+  if (!list.length) return;
+  const newIdx = currentLightboxIndex >= list.length - 1 ? 0 : currentLightboxIndex + 1;
+  updateLightboxView(newIdx);
 }
 
 function closeLightbox() {
@@ -1675,6 +1731,27 @@ document.addEventListener('DOMContentLoaded', async () => {
       showToast('Loaded generation trace & settings into Image Studio!');
     };
   }
+
+    const btnPrevLb = document.getElementById('btnLightboxPrev');
+  const btnNextLb = document.getElementById('btnLightboxNext');
+  if (btnPrevLb) btnPrevLb.addEventListener('click', (e) => { e.stopPropagation(); prevLightboxImage(); });
+  if (btnNextLb) btnNextLb.addEventListener('click', (e) => { e.stopPropagation(); nextLightboxImage(); });
+
+  // Arrow key keyboard navigation
+  window.addEventListener('keydown', (e) => {
+    const lbModal = document.getElementById('mediaLightboxModal');
+    if (!lbModal || lbModal.classList.contains('hidden')) return;
+
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      prevLightboxImage();
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      nextLightboxImage();
+    } else if (e.key === 'Escape') {
+      closeLightbox();
+    }
+  });
 
   const btnCloseLightbox = document.getElementById('btnCloseLightbox');
   const modalLightbox = document.getElementById('mediaLightboxModal');

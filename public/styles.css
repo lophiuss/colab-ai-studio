@@ -2315,3 +2315,47 @@ button:active {
   object-fit: cover !important;
   display: block !important;
 }
+
+
+/* LIGHTBOX LEFT/RIGHT NAVIGATION BUTTONS */
+.lightbox-nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 20;
+  backdrop-filter: blur(4px);
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.lightbox-nav-btn:hover {
+  background: rgba(245, 158, 11, 0.35);
+  border-color: var(--accent-amber);
+  color: #fbbf24;
+  transform: translateY(-50%) scale(1.1);
+}
+
+.lightbox-nav-btn.prev {
+  left: 14px;
+}
+
+.lightbox-nav-btn.next {
+  right: 14px;
+}
+
+.lightbox-nav-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  pointer-events: none;
+}
