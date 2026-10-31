@@ -60,7 +60,7 @@ os.environ["HF_HOME"] = CACHE_DIR
 broadcast_stage(2, "Installing AI & Tunnel Dependencies", 45, "Installing transformers, bitsandbytes, accelerate, pycloudflared, fastapi...")
 subprocess.check_call([
     sys.executable, "-m", "pip", "install", "-q",
-    "transformers", "accelerate", "bitsandbytes", "peft", "pycloudflared", "fastapi", "uvicorn"
+    "transformers", "accelerate", "bitsandbytes", "peft", "pycloudflared", "fastapi", "uvicorn", "diffusers"
 ])
 broadcast_stage(2, "Dependencies Ready", 60, f"Packages installed; cache bound to {CACHE_DIR}")
 
@@ -212,6 +212,43 @@ def generate_chat( body: dict ):
         return {"ok": True, "response": reply, "elapsedSec": elapsed}
     except Exception as e:
         return {"ok": False, "error": str(e), "response": f"Generation error: {str(e)}"}
+
+image_pipe = None
+
+@app.post("/generate/image")
+def generate_image(body: dict):
+    global image_pipe
+    prompt = str(body.get("prompt", "cinematic photo, 8k")).strip()
+    steps = int(body.get("steps", 4))
+    
+    if image_pipe is None and HAS_CUDA:
+        try:
+            from diffusers import AutoPipelineForText2Image
+            # SD-Turbo is fast (1-4 steps, ~2GB VRAM) and fits effortlessly on A100 alongside Qwen!
+            image_pipe = AutoPipelineForText2Image.from_pretrained(
+                "stabilityai/sd-turbo",
+                torch_dtype=torch.float16,
+                variant="fp16"
+            ).to("cuda")
+            print("🎨 SD-Turbo image pipeline loaded into VRAM!", flush=True)
+        except Exception as e:
+            print(f"Diffusers load notice: {e}", flush=True)
+            return {"ok": False, "error": str(e)}
+
+    if image_pipe is not None:
+        try:
+            import io, base64
+            t0 = time.time()
+            img = image_pipe(prompt=prompt, num_inference_steps=steps, guidance_scale=0.0).images[0]
+            buf = io.BytesIO()
+            img.save(buf, format="JPEG", quality=92)
+            elapsed = round(time.time() - t0, 2)
+            b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
+            print(f"🎨 Generated image in {elapsed}s on GPU!", flush=True)
+            return {"ok": True, "image_b64": b64, "elapsedSec": elapsed}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+    return {"ok": False, "error": "GPU Diffusers pipeline not available"}
 
 @app.post("/shutdown")
 def shutdown_runtime():

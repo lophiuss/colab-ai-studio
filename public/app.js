@@ -140,6 +140,18 @@ function renderPersonaDeck() {
       const isDef = p.id === defaultPresetId;
       return `<option value="${p.id}" ${p.id === presets.activePresetId ? 'selected' : ''}>${isDef ? '⭐ ' : ''}${escapeHtml(p.name)}${isDef ? ' (Default)' : ''}</option>`;
     }).join('');
+  // Image card delete handler
+  grid.querySelectorAll('.btn-delete-image').forEach(btn => {
+    btn.onclick = async (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.imgId;
+      await apiPost('/api/studio/image/delete', { id });
+      if (appState) appState.images = appState.images.filter(img => img.id !== id);
+      renderImageStudio();
+      showToast('Image deleted');
+    };
+  });
+
     if (chatSelect.innerHTML !== optionsHtml) {
       chatSelect.innerHTML = optionsHtml;
     }
@@ -383,7 +395,7 @@ function renderImageStudio() {
   grid.dataset.lastSig = signature;
 
   grid.innerHTML = appState.images.map(img => {
-    const fallbackUrl = `https://pollinations.ai/p/${encodeURIComponent(img.prompt)}?width=${img.width || 1024}&height=${img.height || 576}&seed=${img.seed}`;
+    const fallbackUrl = `/media/${img.id}.svg`;
     const finalUrl = img.imageUrl || fallbackUrl;
     return `
       <div class="media-card" data-img-id="${img.id}">
@@ -392,6 +404,7 @@ function renderImageStudio() {
           <div class="media-overlay-actions">
             <button class="btn-overlay btn-view-image" data-url="${finalUrl}" data-prompt="${escapeHtml(img.prompt)}" data-meta="${escapeHtml(img.aspectRatio || '16:9')} · Seed ${img.seed} · ${escapeHtml(img.model.split('/').pop())}">🔍 View HD</button>
             <a class="btn-overlay" href="${finalUrl}" target="_blank" download="render-${img.seed}.jpg">⬇ Download</a>
+            <button class="btn-overlay btn-delete-image" data-img-id="${img.id}" title="Delete Image" style="color:#f87171;">✕</button>
             <button class="btn-overlay btn-copy-image-prompt" data-prompt="${escapeHtml(img.prompt)}">📋 Prompt</button>
           </div>
         </div>

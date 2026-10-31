@@ -1969,6 +1969,21 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { ok: true, novel: state.novel, computeUnits: state.computeUnits });
     }
 
+    if (req.method === 'POST' && pathname === '/api/studio/image/delete') {
+      const body = await parseJsonBody(req);
+      if (body.id) {
+        state.images = state.images.filter(img => img.id !== body.id);
+        const fPath = path.join(PUBLIC_DIR, 'media', `${body.id}.jpg`);
+        const sPath = path.join(PUBLIC_DIR, 'media', `${body.id}.svg`);
+        if (fs.existsSync(fPath)) try { fs.unlinkSync(fPath); } catch(_) {}
+        if (fs.existsSync(sPath)) try { fs.unlinkSync(sPath); } catch(_) {}
+      } else if (body.clearAllBroken) {
+        state.images = state.images.filter(img => img.imageUrl && !img.imageUrl.includes('pollinations.ai'));
+      }
+      saveState();
+      return sendJson(res, 200, { ok: true, images: state.images });
+    }
+
     if (req.method === 'POST' && pathname === '/api/studio/image') {
       const body = await parseJsonBody(req);
       const item = await createGeneratedImage(body.prompt || 'Cinematic clockwork citadel', body);
