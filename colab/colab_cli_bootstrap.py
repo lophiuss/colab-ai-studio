@@ -214,40 +214,109 @@ def generate_chat( body: dict ):
         return {"ok": False, "error": str(e), "response": f"Generation error: {str(e)}"}
 
 image_pipe = None
+current_image_model = None
 
 @app.post("/generate/image")
 def generate_image(body: dict):
-    global image_pipe
-    prompt = str(body.get("prompt", "cinematic photo, 8k")).strip()
-    steps = int(body.get("steps", 4))
-    
-    if image_pipe is None and HAS_CUDA:
+    global image_pipe, current_image_model
+    prompt = str(body.get("prompt", "cinematic photo, highly detailed, 8k resolution")).strip()
+    neg_prompt = str(body.get("negative_prompt", "")).strip()
+    width = int(body.get("width", 1024))
+    height = int(body.get("height", 576))
+    steps = int(body.get("steps", 8))
+    cfg_scale = float(body.get("cfg_scale", 2.0))
+    requested_model = str(body.get("model", "")).strip()
+
+    # Automatic high-anatomy liberated model selection:
+    # A100 (40GB VRAM) -> DreamShaper XL Turbo (1024x1024 SDXL, flawless eyes & uncensored anatomy)
+    # T4 / smaller -> DreamShaper 8 (SD 1.5, ultra-fast 2GB VRAM, liberated anatomy)
+    if not requested_model or requested_model in ["black-forest-labs/FLUX.1-dev", "stabilityai/sd-turbo", "auto"]:
+        if gpu_info.get("vramTotalMB", 0) > 20000:
+            requested_model = "Lykon/dreamshaper-xl-v2-turbo"
+        else:
+            requested_model = "Lykon/dreamshaper-8"
+
+    # Default anatomical negative prompt to eradicate bad eyes, deformed pupils & mutant hands
+    default_neg = (
+        "deformed iris, deformed pupils, bad eyes, cross-eyed, bad anatomy, ugly, "
+        "deformed hands, mutated hands, extra fingers, missing fingers, poorly drawn face, "
+        "disfigured, malformed limbs, blurry, bad proportions, cloned face, gross proportions"
+    )
+    if not neg_prompt:
+        neg_prompt = default_neg
+    else:
+        neg_prompt = f"{neg_prompt}, {default_neg}"
+
+    if HAS_CUDA and (image_pipe is None or current_image_model != requested_model):
         try:
             from diffusers import AutoPipelineForText2Image
-            # SD-Turbo is fast (1-4 steps, ~2GB VRAM) and fits effortlessly on A100 alongside Qwen!
-            image_pipe = AutoPipelineForText2Image.from_pretrained(
-                "stabilityai/sd-turbo",
-                torch_dtype=torch.float16,
-                variant="fp16"
-            ).to("cuda")
-            print("🎨 SD-Turbo image pipeline loaded into VRAM!", flush=True)
+            print(f"🎨 Loading Liberated High-Anatomy Model onto GPU: {requested_model}...", flush=True)
+            pipe_kwargs = {
+                "torch_dtype": torch.float16
+            }
+            try:
+                pipe = AutoPipelineForText2Image.from_pretrained(requested_model, variant="fp16", **pipe_kwargs)
+            except Exception:
+                pipe = AutoPipelineForText2Image.from_pretrained(requested_model, **pipe_kwargs)
+
+            # Uncensor completely: disable any lingering safety checkers for liberated artistic freedom
+            if hasattr(pipe, "safety_checker"):
+                pipe.safety_checker = None
+            if hasattr(pipe, "requires_safety_checker"):
+                pipe.requires_safety_checker = False
+
+            pipe = pipe.to("cuda")
+            # Enable memory optimizations if available
+            try:
+                pipe.enable_attention_slicing()
+            except Exception:
+                pass
+
+            image_pipe = pipe
+            current_image_model = requested_model
+            print(f"✨ Model {requested_model} loaded in VRAM! Liberated Mode active (no censorship).", flush=True)
         except Exception as e:
-            print(f"Diffusers load notice: {e}", flush=True)
-            return {"ok": False, "error": str(e)}
+            print(f"Diffusers load warning: {e}", flush=True)
+            if image_pipe is None:
+                # Fast fallback to sd-turbo if download times out
+                try:
+                    from diffusers import AutoPipelineForText2Image
+                    image_pipe = AutoPipelineForText2Image.from_pretrained(
+                        "stabilityai/sd-turbo",
+                        torch_dtype=torch.float16,
+                        variant="fp16"
+                    ).to("cuda")
+                    current_image_model = "stabilityai/sd-turbo"
+                except Exception as ex2:
+                    return {"ok": False, "error": f"Failed to load diffusion pipeline: {ex2}"}
 
     if image_pipe is not None:
         try:
             import io, base64
             t0 = time.time()
-            img = image_pipe(prompt=prompt, num_inference_steps=steps, guidance_scale=0.0).images[0]
+            gen_kwargs = {
+                "prompt": prompt,
+                "num_inference_steps": steps,
+                "guidance_scale": cfg_scale,
+                "width": width,
+                "height": height
+            }
+            # SDXL-Turbo / Dreamshaper XL with CFG > 1.0 supports negative prompt
+            if cfg_scale > 1.0 and neg_prompt and "sd-turbo" not in str(current_image_model).lower():
+                gen_kwargs["negative_prompt"] = neg_prompt
+
+            with torch.inference_mode():
+                img = image_pipe(**gen_kwargs).images[0]
+
             buf = io.BytesIO()
-            img.save(buf, format="JPEG", quality=92)
+            img.save(buf, format="JPEG", quality=95)
             elapsed = round(time.time() - t0, 2)
             b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
-            print(f"🎨 Generated image in {elapsed}s on GPU!", flush=True)
-            return {"ok": True, "image_b64": b64, "elapsedSec": elapsed}
+            print(f"🎨 [A100 GPU] Generated {width}x{height} liberated masterwork in {elapsed}s (Model: {current_image_model})!", flush=True)
+            return {"ok": True, "image_b64": b64, "elapsedSec": elapsed, "model": current_image_model}
         except Exception as e:
             return {"ok": False, "error": str(e)}
+
     return {"ok": False, "error": "GPU Diffusers pipeline not available"}
 
 @app.post("/shutdown")

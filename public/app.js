@@ -1237,18 +1237,40 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // 7. Image Generation Studio Actions
+  const imageModelSelect = document.getElementById('imageModelSelect');
+  if (imageModelSelect) {
+    imageModelSelect.addEventListener('change', () => {
+      const m = imageModelSelect.value;
+      const stepsInput = document.getElementById('imageSteps');
+      const cfgInput = document.getElementById('imageCfg');
+      if (m.includes('dreamshaper') || m.includes('turbo')) {
+        if (stepsInput) stepsInput.value = '8';
+        if (cfgInput) cfgInput.value = '2.0';
+      } else if (m.includes('flux')) {
+        if (stepsInput) stepsInput.value = '28';
+        if (cfgInput) cfgInput.value = '3.5';
+      }
+      const pill = document.getElementById('imageActiveModelPill');
+      if (pill) pill.textContent = m;
+    });
+  }
+
   const btnGenerateImage = document.getElementById('btnGenerateImage');
   if (btnGenerateImage) {
     btnGenerateImage.addEventListener('click', async () => {
       const prompt = document.getElementById('imagePromptInput').value.trim() || 'Rain-slicked clockwork harbor at dusk, volumetric amber lantern light';
+      const model = document.getElementById('imageModelSelect')?.value || 'Lykon/dreamshaper-xl-v2-turbo';
       const aspectRatio = document.getElementById('imageAspectRatio').value;
       const steps = document.getElementById('imageSteps').value;
       const cfgScale = document.getElementById('imageCfg').value;
+      const anatomyBoost = document.getElementById('chkAnatomyBoost')?.checked ?? true;
+      const negativePrompt = document.getElementById('imageNegativePromptInput')?.value.trim() || '';
+
       btnGenerateImage.disabled = true;
-      btnGenerateImage.textContent = 'Rendering FLUX image on GPU... ⏳';
+      btnGenerateImage.textContent = 'Rendering liberated visual on GPU... ⏳';
       try {
-        await apiPost('/api/studio/image', { prompt, aspectRatio, steps, cfgScale });
-        showToast('Rendered high-resolution image via Diffusers pipeline');
+        await apiPost('/api/studio/image', { prompt, model, aspectRatio, steps, cfgScale, anatomyBoost, negativePrompt });
+        showToast('Rendered high-resolution image with anatomical enhancement!');
         await fetchState();
       } catch (err) {
         showToast('Image render failed: ' + err.message);

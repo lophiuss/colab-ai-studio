@@ -517,6 +517,14 @@
                 ✨ Enhance Visual Prompt
               </button>
               <div class="inline-controls">
+                <label>Engine
+                  <select id="imageModelSelect" style="max-width:210px;">
+                    <option value="Lykon/dreamshaper-xl-v2-turbo" selected>🎭 Liberated (DreamShaper XL)</option>
+                    <option value="flux-realism">👁️ FLUX Realism (Anatomy &amp; Eyes)</option>
+                    <option value="black-forest-labs/FLUX.1-dev">🎨 FLUX.1 Creative</option>
+                    <option value="stabilityai/sd-turbo">⚡ Fast Turbo (0.3s)</option>
+                  </select>
+                </label>
                 <label>Ratio
                   <select id="imageAspectRatio">
                     <option value="16:9">16:9 Cinematic</option>
@@ -525,14 +533,21 @@
                   </select>
                 </label>
                 <label>Steps
-                  <input id="imageSteps" type="number" value="28" min="4" max="60" style="width:60px" />
+                  <input id="imageSteps" type="number" value="8" min="4" max="60" style="width:52px" />
                 </label>
                 <label>CFG
-                  <input id="imageCfg" type="number" step="0.5" value="3.5" min="1" max="15" style="width:60px" />
+                  <input id="imageCfg" type="number" step="0.5" value="2.0" min="1" max="15" style="width:52px" />
+                </label>
+                <label class="checkbox-row compact" style="margin-left:6px; font-size:12px; display:inline-flex; align-items:center; gap:5px; color:var(--accent-cyan); cursor:pointer;" title="Enforces symmetrical irises, realistic facial anatomy and suppresses mutated limbs">
+                  <input id="chkAnatomyBoost" type="checkbox" checked />
+                  <span>👁️ Perfect Eyes &amp; Anatomy</span>
                 </label>
               </div>
             </div>
-            <textarea id="imagePromptInput" rows="2" placeholder="Describe subject, lighting, lens, and atmosphere (or click Enhance Visual Prompt)..."></textarea>
+            <textarea id="imagePromptInput" rows="2" placeholder="Describe subject, lighting, sensual/erotic atmosphere, lens, and details..."></textarea>
+            <div style="margin-top:6px;">
+              <input id="imageNegativePromptInput" type="text" style="width:100%; font-size:12px; padding:6px 12px; background:rgba(15,23,42,0.65); border:1px solid rgba(255,255,255,0.08); border-radius:6px; color:var(--text-muted);" placeholder="Negative prompt (e.g., deformed eyes, bad pupils, mutated hands, extra limbs, bad anatomy)..." />
+            </div>
             <div class="composer-actions">
               <button id="btnQueueImageBatch" type="button" class="btn-amber">+ Queue 3 Variations</button>
               <button id="btnQueueImage" type="button" class="btn-secondary">+ Add to Queue</button>

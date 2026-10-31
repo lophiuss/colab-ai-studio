@@ -999,17 +999,39 @@ async function createGeneratedImage(prompt, options = {}) {
   const filePath = path.join(mediaDir, fileName);
   let localUrl = `/media/${fileName}`;
 
+  // Anatomical and liberated quality enhancements
+  const isHumanOrCharacter = /woman|man|girl|boy|person|cleopatra|portrait|face|eyes|queen|body|erotic|sensual|skin|breasts|beauty|goddess|princess|lady|warrior|human|figure/i.test(cleanPrompt);
+  let enhancedPrompt = cleanPrompt;
+  if (options.anatomyBoost !== false && isHumanOrCharacter && !cleanPrompt.toLowerCase().includes('symmetrical eyes')) {
+    enhancedPrompt = `${cleanPrompt}, masterpiece, highly detailed symmetrical eyes, detailed pupils, realistic authentic irises, anatomically correct body, natural skin texture, sharp focus, 8k resolution, cinematic lighting`;
+  }
+
+  const defaultNegative = 'deformed iris, deformed pupils, bad eyes, cross-eyed, bad anatomy, deformed hands, extra fingers, mutated hands, poorly drawn face, disfigured, malformed limbs, blurry, bad proportions, cloned face, gross proportions, watermark, low quality';
+  const negativePrompt = (options.negativePrompt ? `${options.negativePrompt}, ${defaultNegative}` : defaultNegative);
+
   let downloaded = false;
 
   // 1. Primary: Real GPU generation on Colab A100 Diffusers!
   if (state.colab.status === 'READY' && state.colab.tunnelUrl) {
     try {
       const gpuCtrl = new AbortController();
-      const gpuTid = setTimeout(() => gpuCtrl.abort(), 35000);
+      const gpuTid = setTimeout(() => gpuCtrl.abort(), 60000);
+      const gpuSteps = options.steps ? Number(options.steps) : (state.colab.gpuTier === 'A100' ? 8 : 6);
+      const gpuCfg = options.cfgScale ? Number(options.cfgScale) : 2.0;
+      const targetModel = options.model || (state.colab.gpuTier === 'A100' ? 'Lykon/dreamshaper-xl-v2-turbo' : 'Lykon/dreamshaper-8');
+
       const gpuRes = await fetch(`${state.colab.tunnelUrl}/generate/image`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: cleanPrompt, width, height, steps: 4 }),
+        body: JSON.stringify({
+          prompt: enhancedPrompt,
+          negative_prompt: negativePrompt,
+          width,
+          height,
+          steps: gpuSteps,
+          cfg_scale: gpuCfg,
+          model: targetModel
+        }),
         signal: gpuCtrl.signal
       });
       clearTimeout(gpuTid);
@@ -1018,7 +1040,7 @@ async function createGeneratedImage(prompt, options = {}) {
         if (gpuData && gpuData.ok && gpuData.image_b64) {
           fs.writeFileSync(filePath, Buffer.from(gpuData.image_b64, 'base64'));
           downloaded = true;
-          console.log(`🎨 [Colab A100 GPU] Generated real image in ${gpuData.elapsedSec || 1}s!`);
+          console.log(`🎨 [Colab A100 GPU] Generated real image (${gpuData.model || targetModel}) in ${gpuData.elapsedSec || 1}s!`);
         }
       }
     } catch (e) {
@@ -1028,14 +1050,17 @@ async function createGeneratedImage(prompt, options = {}) {
 
   // 2. High-speed external fallback with real browser User-Agent
   if (!downloaded) {
-    const candidateUrls = [
-      `https://image.pollinations.ai/prompt/${encodeURIComponent(cleanPrompt)}?width=${width}&height=${height}&model=flux&seed=${seed}&nologo=true`,
-      `https://image.pollinations.ai/prompt/${encodeURIComponent(cleanPrompt)}?width=${width}&height=${height}&model=turbo&seed=${seed}&nologo=true`
-    ];
-    for (const u of candidateUrls) {
+    const reqModel = (options.model || '').toLowerCase();
+    let extModels = ['any-dark', 'flux-realism', 'flux', 'turbo'];
+    if (reqModel.includes('realism') || reqModel.includes('photo')) {
+      extModels = ['flux-realism', 'any-dark', 'flux', 'turbo'];
+    }
+
+    for (const m of extModels) {
       try {
         const controller = new AbortController();
-        const tid = setTimeout(() => controller.abort(), 12000);
+        const tid = setTimeout(() => controller.abort(), 14000);
+        const u = `https://image.pollinations.ai/prompt/${encodeURIComponent(enhancedPrompt)}?width=${width}&height=${height}&model=${m}&seed=${seed}&nologo=true&safe=false`;
         const res = await fetch(u, {
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
@@ -1049,6 +1074,7 @@ async function createGeneratedImage(prompt, options = {}) {
           if (arrayBuf.byteLength > 2000 && ![94175, 94177, 83327, 80743].includes(arrayBuf.byteLength)) {
             fs.writeFileSync(filePath, Buffer.from(arrayBuf));
             downloaded = true;
+            console.log(`🎨 [External Engine] Generated image via Pollinations (${m})`);
             break;
           }
         }
@@ -1080,7 +1106,7 @@ async function createGeneratedImage(prompt, options = {}) {
     id,
     prompt: cleanPrompt,
     imageUrl: localUrl,
-    model: options.model || state.models.activeImageModel,
+    model: options.model || (state.colab.gpuTier === 'A100' ? 'Lykon/dreamshaper-xl-v2-turbo' : state.models.activeImageModel),
     aspectRatio,
     width,
     height,
