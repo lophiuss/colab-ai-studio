@@ -498,6 +498,7 @@ function saveState() {
 let startupInterval = null;
 
 function applyColabStageUpdate({ stageIndex, stageName, progress, detail }) {
+  if (state.colab.status === "READY" && state.colab.tunnelConnected) return;
   const idx = Math.max(1, Math.min(4, Number(stageIndex || 1)));
   const pct = Math.max(4, Math.min(100, Number(progress || 20)));
 
@@ -742,6 +743,7 @@ async function handleRelayItem(item) {
 }
 
 async function pollAutoTunnelRelay() {
+  if (state.colab.status === "READY" && state.colab.tunnelConnected) return;
   const emailPrefix = (state.user.email || 'creator').split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
   const topic = state.colab.pairingTopic || `colab_sync_${emailPrefix}`;
   try {
