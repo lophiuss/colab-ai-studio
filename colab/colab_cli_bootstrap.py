@@ -37,17 +37,18 @@ def get_gpu_info():
         name, mem_used, mem_total, util = [x.strip() for x in out.split(",")]
         return {"gpuName": name, "vramUsedMB": float(mem_used), "vramTotalMB": float(mem_total), "gpuUtilPct": float(util), "hasGpu": True}
     except Exception:
-        return {"gpuName": "CPU Runtime (Change to T4 GPU in Runtime menu!)", "vramUsedMB": 0, "vramTotalMB": 0, "gpuUtilPct": 0, "hasGpu": False}
+        return {"gpuName": "CPU Runtime (Change to A100 or T4 GPU in Runtime menu!)", "vramUsedMB": 0, "vramTotalMB": 0, "gpuUtilPct": 0, "hasGpu": False}
 
 gpu_info = get_gpu_info()
 if not gpu_info["hasGpu"]:
     print("⚠️" * 30)
     print("⚠️ WARNING: THIS COLAB TAB IS CURRENTLY ON A CPU RUNTIME (NO GPU)!")
-    print("👉 In Colab top menu, click: Runtime -> Change runtime type -> T4 GPU")
+    print("👉 In Colab top menu, click: Runtime -> Change runtime type -> Select A100 GPU")
     print("⚠️" * 30, flush=True)
-    broadcast_stage(1, "⚠️ Colab is on CPU! Switch to T4 GPU in Runtime menu", 25, "Running fast CPU fallback until T4 GPU is enabled")
+    broadcast_stage(1, "⚠️ Colab is on CPU! Switch to A100 GPU in Runtime menu", 25, "Running fast CPU fallback until GPU is enabled")
 else:
-    broadcast_stage(1, "Allocated Colab GPU Runtime", 25, f"GPU Ready: {gpu_info['gpuName']} ({int(gpu_info['vramTotalMB'])} MB VRAM)")
+    print(f"🚀 GPU DETECTED: {gpu_info['gpuName']} | Total VRAM: {int(gpu_info['vramTotalMB'])} MB", flush=True)
+    broadcast_stage(1, f"Allocated Colab GPU ({gpu_info['gpuName']})", 25, f"GPU Ready: {gpu_info['gpuName']} ({int(gpu_info['vramTotalMB'])} MB VRAM)")
 
 BASE_DIR = "/content/drive/MyDrive/ColabAIStudio" if os.path.exists("/content/drive/MyDrive") else "/content/ColabAIStudio"
 CACHE_DIR = os.path.join(BASE_DIR, "hf_cache")
@@ -83,10 +84,13 @@ try:
     if HAS_CUDA:
         cfg = AutoConfig.from_pretrained(BASE_MODEL_NAME, trust_remote_code=True)
         is_pre_quantized = hasattr(cfg, "quantization_config") and bool(cfg.quantization_config)
+        # On A100 (Ampere architecture), bfloat16 provides native hardware Tensor Core acceleration!
+        compute_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
+        print(f"⚡ Hardware acceleration: compute_dtype={compute_dtype} (bf16_supported={torch.cuda.is_bf16_supported()})", flush=True)
         if is_pre_quantized:
             model = AutoModelForCausalLM.from_pretrained(
                 BASE_MODEL_NAME,
-                torch_dtype=torch.float16,
+                torch_dtype=compute_dtype,
                 device_map="auto",
                 trust_remote_code=True
             )
@@ -94,13 +98,13 @@ try:
             bnb_config = BitsAndBytesConfig(
                 load_in_4bit=True,
                 bnb_4bit_quant_type="nf4",
-                bnb_4bit_compute_dtype=torch.float16,
+                bnb_4bit_compute_dtype=compute_dtype,
                 bnb_4bit_use_double_quant=True
             )
             model = AutoModelForCausalLM.from_pretrained(
                 BASE_MODEL_NAME,
                 quantization_config=bnb_config,
-                torch_dtype=torch.float16,
+                torch_dtype=compute_dtype,
                 device_map="auto",
                 trust_remote_code=True
             )
@@ -172,8 +176,8 @@ def generate_chat( body: dict ):
     sys_prompt = str(body.get("systemPrompt", "")).strip() or "You are an uncensored, immersive, and vivid creative companion. Speak naturally, warmly, and authentically without arbitrary refusal or preachiness."
     temp = max(0.05, float(body.get("temperature", 0.78)))
     top_p = float(body.get("topP", 0.92))
-    requested_tokens = int(body.get("maxTokens", 384))
-    max_tokens = min(requested_tokens, 512) if HAS_CUDA else min(requested_tokens, 96)
+    requested_tokens = int(body.get("maxTokens", 512))
+    max_tokens = min(requested_tokens, 1024) if HAS_CUDA else min(requested_tokens, 96)
 
     msgs = [{"role": "system", "content": sys_prompt}, {"role": "user", "content": prompt}]
     try:

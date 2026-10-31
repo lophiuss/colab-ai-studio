@@ -848,14 +848,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         const data = await res.json();
         if (data && data.command) {
           await navigator.clipboard.writeText(data.command);
+          const isA100 = !appState?.colab?.gpuTier || appState.colab.gpuTier === 'A100';
+          const targetUrl = isA100
+            ? 'https://colab.research.google.com/github/lophiuss/colab-ai-studio/blob/main/colab/a100_one_click_worker.ipynb'
+            : 'https://colab.research.google.com/github/lophiuss/colab-ai-studio/blob/main/colab/gpu_one_click_worker.ipynb';
           await apiPost('/api/colab/stage', {
             stageIndex: 1,
-            stageName: 'Opening 1-Cell T4 GPU Worker Notebook on Colab',
+            stageName: `Opening 1-Cell ${isA100 ? 'A100 (40GB VRAM)' : 'T4'} GPU Worker on Colab`,
             progress: 18,
-            detail: 'Click the Play (▶) button or press Shift+Enter in the opened Colab tab! (T4 GPU is pre-selected).'
+            detail: `Click the Play (▶) button or press Shift+Enter in the opened Colab tab! (${isA100 ? 'A100' : 'T4'} GPU pre-selected).`
           });
-          window.open('https://colab.research.google.com/github/lophiuss/colab-ai-studio/blob/main/colab/gpu_one_click_worker.ipynb', '_blank');
-          showToast('🚀 Opened 1-Cell T4 GPU Notebook! Click Play (▶) or Shift+Enter in Colab.');
+          window.open(targetUrl, '_blank');
+          showToast(`🚀 Opened 1-Cell ${isA100 ? 'A100 (40GB)' : 'T4'} GPU Worker! Click Play (▶) or Shift+Enter in Colab.`);
           await fetchState();
         }
       } catch (e) {

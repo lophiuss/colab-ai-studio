@@ -16,7 +16,7 @@ if (!fs.existsSync(DATA_DIR)) {
 }
 
 const GPU_TIERS = {
-  T4: { name: 'NVIDIA Tesla T4', vramTotalMB: 15360, burnRateCUHr: 1.96 },
+  T4: { name: 'NVIDIA Tesla T4', vramTotalMB: 40960, burnRateCUHr: 1.96 },
   L4: { name: 'NVIDIA L4', vramTotalMB: 23040, burnRateCUHr: 4.82 },
   A100: { name: 'NVIDIA A100-SXM4-40GB', vramTotalMB: 40960, burnRateCUHr: 13.11 }
 };
@@ -34,8 +34,8 @@ const DEFAULT_STATE = {
     notebookUrl: 'https://colab.research.google.com/github/lophiuss/colab-ai-studio/blob/main/colab/01_text_llm_finetuner_and_worker.ipynb',
     tunnelUrl: 'https://colab-worker-t4.trycloudflare.com',
     pairingTopic: 'colab_sync_studio_9f4k2x8m',
-    gpuTier: 'T4',
-    gpuName: 'NVIDIA Tesla T4',
+    gpuTier: 'A100',
+    gpuName: 'NVIDIA A100-SXM4-40GB',
     vramUsedMB: 0,
     vramTotalMB: 15360,
     gpuUtilPct: 0,
@@ -537,7 +537,7 @@ function applyColabStageUpdate({ stageIndex, stageName, progress, detail }) {
   saveState();
 }
 
-function completeColabBootWithTunnel(tunnelUrl, modelId = null) {
+function completeColabBootWithTunnel(tunnelUrl, modelId = null, gpuInfo = null) {
   if (startupInterval) {
     clearInterval(startupInterval);
     startupInterval = null;
@@ -548,9 +548,25 @@ function completeColabBootWithTunnel(tunnelUrl, modelId = null) {
   state.colab.startupProgressPct = 100;
   state.colab.currentStageIndex = 4;
   state.colab.driveMounted = true;
-  const activeModelObj = state.models.catalog.find(m => m.id === state.models.activeTextModel);
-  state.colab.vramUsedMB = activeModelObj ? activeModelObj.vramMB : 5600;
-  state.colab.gpuUtilPct = 16;
+  if (gpuInfo && gpuInfo.gpuName) {
+    state.colab.gpuName = gpuInfo.gpuName;
+    if (gpuInfo.vramTotalMB) state.colab.vramTotalMB = gpuInfo.vramTotalMB;
+    if (gpuInfo.vramUsedMB) state.colab.vramUsedMB = gpuInfo.vramUsedMB;
+    if (gpuInfo.gpuUtilPct !== undefined) state.colab.gpuUtilPct = gpuInfo.gpuUtilPct;
+    if (gpuInfo.gpuName.includes('A100')) {
+      state.colab.gpuTier = 'A100';
+    } else if (gpuInfo.gpuName.includes('L4')) {
+      state.colab.gpuTier = 'L4';
+    } else if (gpuInfo.gpuName.includes('T4')) {
+      state.colab.gpuTier = 'T4';
+    }
+  } else {
+    const tier = GPU_TIERS[state.colab.gpuTier] || GPU_TIERS.A100;
+    state.colab.gpuName = tier.name;
+    state.colab.vramTotalMB = tier.vramTotalMB;
+    const activeModelObj = state.models.catalog.find(m => m.id === state.models.activeTextModel);
+    state.colab.vramUsedMB = activeModelObj ? activeModelObj.vramMB : 4725;
+  }
   if (modelId) {
     state.models.loadedInVramModel = modelId;
   } else if (!state.models.loadedInVramModel) {
@@ -562,7 +578,7 @@ function completeColabBootWithTunnel(tunnelUrl, modelId = null) {
   });
   if (state.colab.stages[3]) {
     state.colab.stages[3].name = 'Colab GPU Tunnel Connected & Ready!';
-    state.colab.stages[3].detail = `Live Tunnel Linked: ${tunnelUrl}`;
+    state.colab.stages[3].detail = 'Live Tunnel Linked: ' + tunnelUrl;
   }
   saveState();
   processNextQueueTask();
@@ -696,6 +712,7 @@ async function handleRelayItem(item) {
           const health = await pingRes.json();
           verified = true;
           modelId = health.model?.active_model_id;
+          gpuInfo = health.gpu;
         }
       } catch (_) {}
 
@@ -715,7 +732,7 @@ async function handleRelayItem(item) {
       }
 
       if (verified) {
-        completeColabBootWithTunnel(discoveredUrl, modelId);
+        completeColabBootWithTunnel(discoveredUrl, modelId, typeof gpuInfo !== "undefined" ? gpuInfo : null);
         console.log(`📡 [Safe Auto-Fetch] Automatically connected to Colab GPU: ${discoveredUrl}`);
         return true;
       }
@@ -1550,6 +1567,7 @@ const server = http.createServer(async (req, res) => {
               const healthData = await pingRes.json();
               isAlive = true;
               modelId = healthData.model?.active_model_id;
+              gpuInfo = healthData.gpu;
             }
           } catch (_) {}
         }
@@ -1573,7 +1591,7 @@ const server = http.createServer(async (req, res) => {
         }
 
         if (isAlive) {
-          completeColabBootWithTunnel(testUrl, modelId);
+          completeColabBootWithTunnel(testUrl, modelId, typeof gpuInfo !== "undefined" ? gpuInfo : null);
           return sendJson(res, 200, { ok: true, message: 'Connected live to Colab GPU!', colab: state.colab });
         } else {
           state.colab.tunnelConnected = false;
@@ -2059,3 +2077,40 @@ const PORT = process.env.PORT || 3456;
 server.listen(PORT, () => {
   console.log(`⚡ Colab AI Studio & 200 CU Orchestrator running at http://localhost:${PORT}`);
 });
+
+// ============================================================================
+// COLAB HEALTH & GPU TELEMETRY WATCHDOG (Auto-Disconnects if Cloudflare 530)
+// ============================================================================
+let consecutiveHealthFailures = 0;
+setInterval(async () => {
+  if (state.colab.status === 'READY' && state.colab.tunnelUrl && !state.colab.tunnelUrl.includes('colab-worker-t4.trycloudflare.com')) {
+    try {
+      const controller = new AbortController();
+      const tid = setTimeout(() => controller.abort(), 4500);
+      const res = await fetch(state.colab.tunnelUrl + '/health', { signal: controller.signal });
+      clearTimeout(tid);
+      if (res.ok) {
+        consecutiveHealthFailures = 0;
+        const data = await res.json();
+        if (data && data.gpu) {
+          state.colab.gpuName = data.gpu.gpuName || state.colab.gpuName;
+          state.colab.vramTotalMB = data.gpu.vramTotalMB || state.colab.vramTotalMB;
+          state.colab.vramUsedMB = data.gpu.vramUsedMB || state.colab.vramUsedMB;
+          state.colab.gpuUtilPct = data.gpu.gpuUtilPct || state.colab.gpuUtilPct;
+          if (data.gpu.gpuName && data.gpu.gpuName.includes('A100')) {
+            state.colab.gpuTier = 'A100';
+          }
+          saveState();
+        }
+        return;
+      }
+    } catch (_) {}
+    consecutiveHealthFailures++;
+    if (consecutiveHealthFailures >= 2) {
+      console.log('⚠️ [Colab Watchdog] Colab GPU tunnel is unreachable. Marking status as DISCONNECTED.');
+      state.colab.status = 'DISCONNECTED';
+      state.colab.tunnelConnected = false;
+      saveState();
+    }
+  }
+}, 8000);

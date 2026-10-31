@@ -100,7 +100,7 @@ async function ensureCdpBrowserRunning(userDataDir, port = 9222) {
     `--user-data-dir=${userDataDir}`,
     '--no-first-run',
     '--no-default-browser-check',
-    'https://colab.research.google.com/github/lophiuss/colab-ai-studio/blob/main/colab/01_text_llm_finetuner_and_worker.ipynb'
+    'https://colab.research.google.com/github/lophiuss/colab-ai-studio/blob/main/colab/a100_one_click_worker.ipynb'
   ], {
     detached: true,
     stdio: 'ignore'
