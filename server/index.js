@@ -995,7 +995,33 @@ async function createGeneratedImage(prompt, options = {}) {
   const mediaDir = path.join(PUBLIC_DIR, 'media');
   if (!fs.existsSync(mediaDir)) fs.mkdirSync(mediaDir, { recursive: true });
 
-  const fileName = `${id}.jpg`;
+  const targetModel = options.model || (state.colab.gpuTier === 'A100' ? 'Lykon/dreamshaper-xl-v2-turbo' : state.models.activeImageModel);
+  const steps = Number(options.steps || 8);
+  const cfgScale = Number(options.cfgScale || 2.0);
+
+  // Generate readable descriptive filename that traces model, prompt slug, seed, and settings:
+  // e.g., 20261031_2335_DreamShaperXL_cleopatra_erotic_jewelry_s88495168_cfg2_st8.jpg
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const dateStr = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+  
+  let cleanModelTag = (targetModel || 'Diffusers').split('/').pop().replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 18);
+  if (/dreamshaper/i.test(targetModel)) cleanModelTag = 'DreamShaperXL';
+  else if (/flux.*realism/i.test(targetModel)) cleanModelTag = 'FLUX-Realism';
+  else if (/flux/i.test(targetModel)) cleanModelTag = 'FLUX1-dev';
+  else if (/turbo/i.test(targetModel)) cleanModelTag = 'SD-Turbo';
+
+  const slug = cleanPrompt
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '')
+    .trim()
+    .split(/\s+/)
+    .slice(0, 5)
+    .join('_')
+    .slice(0, 32) || 'visual';
+
+  const fileName = `${dateStr}_${cleanModelTag}_${slug}_s${seed}_cfg${cfgScale}_st${steps}.jpg`;
+  const metaFileName = fileName.replace(/\.jpg$/, '.json');
   const filePath = path.join(mediaDir, fileName);
   let localUrl = `/media/${fileName}`;
 
@@ -1010,15 +1036,13 @@ async function createGeneratedImage(prompt, options = {}) {
   const negativePrompt = (options.negativePrompt ? `${options.negativePrompt}, ${defaultNegative}` : defaultNegative);
 
   let downloaded = false;
+  let gpuElapsed = null;
 
   // 1. Primary: Real GPU generation on Colab A100 Diffusers!
   if (state.colab.status === 'READY' && state.colab.tunnelUrl) {
     try {
       const gpuCtrl = new AbortController();
       const gpuTid = setTimeout(() => gpuCtrl.abort(), 60000);
-      const gpuSteps = options.steps ? Number(options.steps) : (state.colab.gpuTier === 'A100' ? 8 : 6);
-      const gpuCfg = options.cfgScale ? Number(options.cfgScale) : 2.0;
-      const targetModel = options.model || (state.colab.gpuTier === 'A100' ? 'Lykon/dreamshaper-xl-v2-turbo' : 'Lykon/dreamshaper-8');
 
       const gpuRes = await fetch(`${state.colab.tunnelUrl}/generate/image`, {
         method: 'POST',
@@ -1028,8 +1052,8 @@ async function createGeneratedImage(prompt, options = {}) {
           negative_prompt: negativePrompt,
           width,
           height,
-          steps: gpuSteps,
-          cfg_scale: gpuCfg,
+          steps,
+          cfg_scale: cfgScale,
           model: targetModel
         }),
         signal: gpuCtrl.signal
@@ -1040,7 +1064,8 @@ async function createGeneratedImage(prompt, options = {}) {
         if (gpuData && gpuData.ok && gpuData.image_b64) {
           fs.writeFileSync(filePath, Buffer.from(gpuData.image_b64, 'base64'));
           downloaded = true;
-          console.log(`🎨 [Colab A100 GPU] Generated real image (${gpuData.model || targetModel}) in ${gpuData.elapsedSec || 1}s!`);
+          gpuElapsed = gpuData.elapsedSec || 0.4;
+          console.log(`🎨 [Colab A100 GPU] Generated real image (${gpuData.model || targetModel}) in ${gpuData.elapsedSec || 1}s! Saved to: ${fileName}`);
         }
       }
     } catch (e) {
@@ -1050,7 +1075,7 @@ async function createGeneratedImage(prompt, options = {}) {
 
   // 2. High-speed external fallback with real browser User-Agent
   if (!downloaded) {
-    const reqModel = (options.model || '').toLowerCase();
+    const reqModel = (targetModel || '').toLowerCase();
     let extModels = ['any-dark', 'flux-realism', 'flux', 'turbo'];
     if (reqModel.includes('realism') || reqModel.includes('photo')) {
       extModels = ['flux-realism', 'any-dark', 'flux', 'turbo'];
@@ -1074,7 +1099,7 @@ async function createGeneratedImage(prompt, options = {}) {
           if (arrayBuf.byteLength > 2000 && ![94175, 94177, 83327, 80743].includes(arrayBuf.byteLength)) {
             fs.writeFileSync(filePath, Buffer.from(arrayBuf));
             downloaded = true;
-            console.log(`🎨 [External Engine] Generated image via Pollinations (${m})`);
+            console.log(`🎨 [External Engine] Generated image via Pollinations (${m}) -> ${fileName}`);
             break;
           }
         }
@@ -1082,9 +1107,9 @@ async function createGeneratedImage(prompt, options = {}) {
     }
   }
 
-  // If external fetch fails, create a beautiful high-res SVG fallback file on disk
+  // If external fetch fails, create a high-res SVG fallback file on disk
   if (!downloaded) {
-    const svgFileName = `${id}.svg`;
+    const svgFileName = fileName.replace(/\.jpg$/, '.svg');
     const svgFallback = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}">
       <defs>
         <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
@@ -1102,17 +1127,58 @@ async function createGeneratedImage(prompt, options = {}) {
     localUrl = `/media/${svgFileName}`;
   }
 
+  // Write full companion metadata trace sidecar (.json)
+  const metaSidecar = {
+    id,
+    fileName,
+    imageUrl: localUrl,
+    createdAt: new Date().toISOString(),
+    model: targetModel,
+    prompt: cleanPrompt,
+    enhancedPrompt: (enhancedPrompt !== cleanPrompt ? enhancedPrompt : undefined),
+    negativePrompt,
+    settings: {
+      seed,
+      steps,
+      cfgScale,
+      aspectRatio,
+      width,
+      height,
+      anatomyBoost: options.anatomyBoost !== false
+    },
+    hardware: {
+      gpuTier: state.colab.gpuTier || 'A100',
+      gpuName: state.colab.gpuName || 'NVIDIA A100-SXM4-40GB',
+      elapsedSec: gpuElapsed || null
+    }
+  };
+
+  try {
+    fs.writeFileSync(path.join(mediaDir, metaFileName), JSON.stringify(metaSidecar, null, 2), 'utf-8');
+  } catch (e) {
+    console.warn('Could not write metadata sidecar:', e.message);
+  }
+
   const item = {
     id,
+    fileName,
+    metaUrl: `/media/${metaFileName}`,
     prompt: cleanPrompt,
+    enhancedPrompt,
+    negativePrompt,
     imageUrl: localUrl,
-    model: options.model || (state.colab.gpuTier === 'A100' ? 'Lykon/dreamshaper-xl-v2-turbo' : state.models.activeImageModel),
+    model: targetModel,
     aspectRatio,
     width,
     height,
-    steps: Number(options.steps || 28),
-    cfgScale: Number(options.cfgScale || 3.5),
+    steps,
+    cfgScale,
     seed,
+    anatomyBoost: options.anatomyBoost !== false,
+    gpuInfo: {
+      tier: state.colab.gpuTier || 'A100',
+      elapsedSec: gpuElapsed || null
+    },
     createdAt: new Date().toISOString(),
     subjectTag: cleanPrompt.split(',')[0].slice(0, 38)
   };
@@ -2022,11 +2088,26 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && pathname === '/api/studio/image/delete') {
       const body = await parseJsonBody(req);
       if (body.id) {
+        const found = state.images.find(img => img.id === body.id);
         state.images = state.images.filter(img => img.id !== body.id);
+        if (found) {
+          if (found.imageUrl) {
+            const f1 = path.join(PUBLIC_DIR, found.imageUrl.replace(/^\//, ''));
+            const f2 = f1.replace(/\.(jpg|svg)$/, '.json');
+            if (fs.existsSync(f1)) try { fs.unlinkSync(f1); } catch(_) {}
+            if (fs.existsSync(f2)) try { fs.unlinkSync(f2); } catch(_) {}
+          }
+          if (found.metaUrl) {
+            const m1 = path.join(PUBLIC_DIR, found.metaUrl.replace(/^\//, ''));
+            if (fs.existsSync(m1)) try { fs.unlinkSync(m1); } catch(_) {}
+          }
+        }
         const fPath = path.join(PUBLIC_DIR, 'media', `${body.id}.jpg`);
         const sPath = path.join(PUBLIC_DIR, 'media', `${body.id}.svg`);
+        const jPath = path.join(PUBLIC_DIR, 'media', `${body.id}.json`);
         if (fs.existsSync(fPath)) try { fs.unlinkSync(fPath); } catch(_) {}
         if (fs.existsSync(sPath)) try { fs.unlinkSync(sPath); } catch(_) {}
+        if (fs.existsSync(jPath)) try { fs.unlinkSync(jPath); } catch(_) {}
       } else if (body.clearAllBroken) {
         state.images = state.images.filter(img => img.imageUrl && !img.imageUrl.includes('pollinations.ai'));
       }
