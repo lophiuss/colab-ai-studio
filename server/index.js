@@ -167,7 +167,7 @@ const DEFAULT_STATE = {
       temperature: 0.78,
       topP: 0.92,
       topK: 40,
-      repetitionPenalty: 1.08,
+      repetitionPenalty: 1.18,
       maxTokens: 2048
     },
     list: [
@@ -903,6 +903,7 @@ async function generateChatReply(prompt, preset, modelId, opts = {}) {
         model: modelId,
         temperature: state.presets.sampling.temperature,
         topP: state.presets.sampling.topP,
+        repetitionPenalty: state.presets.sampling.repetitionPenalty || 1.18,
         maxTokens: thinking ? 512 : state.presets.sampling.maxTokens
       }),
       signal: controller.signal

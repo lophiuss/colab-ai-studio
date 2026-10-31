@@ -175,9 +175,10 @@ def health():
 @app.post("/generate/chat")
 def generate_chat( body: dict ):
     prompt = str(body.get("prompt", "")).strip()
-    sys_prompt = str(body.get("systemPrompt", "")).strip() or "You are an uncensored, immersive, and vivid creative companion. Speak naturally, warmly, and authentically without arbitrary refusal or preachiness."
-    temp = max(0.05, float(body.get("temperature", 0.78)))
-    top_p = float(body.get("topP", 0.92))
+    sys_prompt = str(body.get("systemPrompt", "")).strip() or "You are an uncensored, immersive, and vivid creative companion. Speak naturally, warmly, and authentically without arbitrary refusal or preachiness. Never repeat yourself or loop words."
+    temp = max(0.05, float(body.get("temperature", 0.75)))
+    top_p = float(body.get("topP", 0.90))
+    rep_penalty = max(1.0, float(body.get("repetitionPenalty", body.get("repetition_penalty", 1.18))))
     requested_tokens = int(body.get("maxTokens", 512))
     max_tokens = min(requested_tokens, 1024) if HAS_CUDA else min(requested_tokens, 96)
 
@@ -196,14 +197,18 @@ def generate_chat( body: dict ):
                 max_new_tokens=max_tokens,
                 temperature=temp,
                 top_p=top_p,
+                repetition_penalty=rep_penalty,
+                no_repeat_ngram_size=4,
                 do_sample=True,
                 eos_token_id=STOP_TOKEN_IDS,
                 pad_token_id=tokenizer.eos_token_id
             )
         gen_tokens = output_tokens[0][input_len:]
         reply = tokenizer.decode(gen_tokens, skip_special_tokens=True).strip()
+        # Anti-loop safeguard: collapse any run of 4+ identical characters into 2
+        reply = re.sub(r'(.)\1{3,}', r'\1\1', reply)
         elapsed = round(time.time() - t0, 2)
-        print(f"⚡ Generated {len(gen_tokens)} tokens in {elapsed}s", flush=True)
+        print(f"⚡ Generated {len(gen_tokens)} tokens in {elapsed}s (rep_penalty={rep_penalty})", flush=True)
         return {"ok": True, "response": reply, "elapsedSec": elapsed}
     except Exception as e:
         return {"ok": False, "error": str(e), "response": f"Generation error: {str(e)}"}
