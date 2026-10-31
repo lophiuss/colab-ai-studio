@@ -256,72 +256,56 @@
   <div class="app-shell">
     <!-- TOP TELEMETRY & 200 COMPUTE UNIT BAR -->
     <header class="top-telemetry-bar">
+      <!-- Left: Logo & Model Pill -->
       <div class="brand-cluster">
+        <button id="btnToggleNavRail" class="btn-icon-toggle" title="Toggle Sidebar">☰</button>
         <div class="brand-badge">⚡</div>
-        <div>
-          <div class="brand-title">Colab AI Studio</div>
-          <div class="brand-sub" id="activeModelHeaderBadge">DavidAU/L3.2-Rogue-Creative-Uncensored-Abliterated-7B (4-bit)</div>
+        <div class="brand-text-wrap">
+          <span class="brand-title">Colab AI Studio</span>
+          <span class="brand-sub" id="activeModelHeaderBadge">Qwen 2.5 7B Abliterated</span>
         </div>
       </div>
 
-      <!-- COLAB RUNTIME STATUS & STARTUP PROGRESS BAR -->
-      <div class="runtime-cluster">
-        <div class="runtime-top-row">
+      <!-- Center: Status, Live URL, GPU VRAM & 200 CU meter -->
+      <div class="top-center-stats">
+        <div class="top-stat-pill status-pill">
           <span id="colabStatusDot" class="status-dot disconnected"></span>
-          <span id="colabStatusText" class="runtime-status-label">Colab Disconnected</span>
-          <span id="colabStartupTimeLabel" class="mono-meta">0.0s / ~12s</span>
-          <div class="runtime-btn-group">
-            <button id="btnCopyColabCli" class="btn-compact btn-wand" title="Open 1-Click A100 GPU Worker in Google Colab (pre-selected A100 GPU with 40GB VRAM) & copy CLI to clipboard">⚡ 1-Click A100 Colab</button>
-            <button id="btnConnectTunnel" class="btn-compact btn-secondary" title="Paste & Connect live Cloudflare tunnel URL manually">🔗 Paste Tunnel</button>
-            <button id="btnWakeColab" class="btn-compact btn-amber" title="Full-Auto Browser Wake & Run Colab">🚀 Full-Auto Colab</button>
-            <button id="btnShutdownColab" class="btn-compact btn-ghost-danger" title="Unassign Colab Runtime to stop CU burn">Disconnect GPU</button>
+          <span id="colabStatusText">Colab Live (A100)</span>
+          <span id="colabStartupTimeLabel" class="mono-meta" style="font-size:11px; color:var(--text-muted);">0.0s</span>
+        </div>
+        <div class="top-stat-pill vram-pill">
+          <span id="gpuTierBadge" class="pill-label">NVIDIA A100</span>
+          <span id="vramReadout" class="mono-meta">5.9 / 40.0 GB</span>
+        </div>
+        <div class="top-stat-pill cu-pill">
+          <span class="pill-label">CU</span>
+          <span id="cuRemainingValue" class="mono-meta">185.2 / 200 CU</span>
+          <div class="cu-mini-bar">
+            <div id="cuGaugeFill" class="cu-gauge-fill" style="width: 92%"></div>
           </div>
         </div>
-        <div class="startup-bar-track" title="Colab Startup & Readiness Progress">
-          <div id="colabProgressBarFill" class="startup-bar-fill" style="width: 0%"></div>
-        </div>
-        <div id="colabStageCaption" class="stage-caption">Sign in or click Auto-Run Colab to allocate GPU runtime</div>
+        <!-- Hidden elements retained for app.js telemetry logic compatibility -->
+        <span id="cuBurnRateLabel" style="display:none;">Burn: 13.11 CU/hr</span>
+        <span id="cuSessionSpentLabel" style="display:none;">Session: 0.00 CU</span>
+        <span id="gpuUtilLabel" style="display:none;">GPU: 0%</span>
+        <span id="driveMountBadge" style="display:none;">Drive</span>
+        <div id="vramGaugeFill" style="display:none;"></div>
+        <div id="colabProgressBarFill" style="display:none;"></div>
+        <span id="colabStageCaption" style="display:none;"></span>
       </div>
 
-      <!-- 200 COMPUTE UNIT (CU) METER -->
-      <div class="cu-meter-cluster">
-        <div class="cu-header-row">
-          <span class="cu-title">Compute Units</span>
-          <span id="cuRemainingValue" class="cu-readout">186.40 / 200.00 CU</span>
-        </div>
-        <div class="cu-gauge-track">
-          <div id="cuGaugeFill" class="cu-gauge-fill" style="width: 93.2%"></div>
-        </div>
-        <div class="cu-meta-row">
-          <span id="cuBurnRateLabel">Burn: 1.96 CU/hr (T4)</span>
-          <span id="cuSessionSpentLabel">Session: 0.000 CU</span>
-          <button id="btnCalibrateCU" class="btn-link">Sync CU</button>
-        </div>
-      </div>
-
-      <!-- GPU VRAM TELEMETRY -->
-      <div class="vram-cluster">
-        <div class="cu-header-row">
-          <span id="gpuTierBadge" class="cu-title">Tesla T4 VRAM</span>
-          <span id="vramReadout" class="mono-meta">0.0 / 15.4 GB</span>
-        </div>
-        <div class="vram-gauge-track">
-          <div id="vramGaugeFill" class="vram-gauge-fill" style="width: 0%"></div>
-        </div>
-        <div class="cu-meta-row">
-          <span id="gpuUtilLabel">GPU Load: 0%</span>
-          <span id="driveMountBadge" class="drive-badge">Drive Cache Linked</span>
-        </div>
-      </div>
-
-      <!-- CREATOR ACCOUNT CLUSTER -->
-      <div class="account-cluster">
-        <button id="btnOpenAccountModal" type="button" class="user-chip-btn" title="View & edit Creator Account and Colab Notebook URL">
+      <!-- Right: Action Buttons & Queue Toggle -->
+      <div class="top-actions-cluster">
+        <button id="btnCopyColabCli" class="btn-compact btn-wand" title="Open 1-Click A100 Colab Notebook">⚡ 1-Click A100</button>
+        <button id="btnConnectTunnel" class="btn-compact btn-secondary" title="Paste Cloudflare Tunnel">🔗 Tunnel</button>
+        <button id="btnWakeColab" class="btn-compact btn-amber" title="Full-Auto Browser Wake">🚀 Auto-Colab</button>
+        <button id="btnShutdownColab" class="btn-compact btn-ghost-danger" title="Disconnect GPU">Disconnect</button>
+        <button id="btnToggleQueueDock" class="btn-compact btn-queue-toggle" title="Toggle Batch Task Queue Pane">
+          📥 Queue <span id="topQueueBadge" class="queue-count-badge">0</span>
+        </button>
+        <button id="btnOpenAccountModal" class="user-chip-btn" title="Account &amp; Settings">
           <span class="user-avatar">👤</span>
-          <div class="user-info-text">
-            <span id="telemetryUserEmail" class="user-email-label">creator@colabaistudio.local</span>
-            <span class="user-role-badge">⚙️ Account Settings</span>
-          </div>
+          <span id="telemetryUserEmail" class="user-email-label" style="display:none;">creator@colabaistudio.local</span>
         </button>
       </div>
     </header>
@@ -341,64 +325,43 @@
     <!-- MAIN 3-COLUMN WORKBENCH -->
     <div class="workbench-grid">
       <!-- LEFT NAVIGATION RAIL -->
-      <aside class="nav-rail">
-        <div class="nav-section-label">Workspaces</div>
-        <button class="nav-item active" data-tab="chat">
-          <span class="nav-icon">💬</span>
-          <div>
-            <div class="nav-title">Interactive Chat</div>
-            <div class="nav-desc">Streaming LLM &amp; Code</div>
-          </div>
-        </button>
-        <button class="nav-item" data-tab="novel">
-          <span class="nav-icon">📖</span>
-          <div>
-            <div class="nav-title">Novel Studio</div>
-            <div class="nav-desc">Chapters &amp; Story Bible</div>
-          </div>
-        </button>
-        <button class="nav-item" data-tab="image">
-          <span class="nav-icon">🎨</span>
-          <div>
-            <div class="nav-title">Image Studio</div>
-            <div class="nav-desc">FLUX &amp; SD3.5 Diffusers</div>
-          </div>
-        </button>
-        <button class="nav-item" data-tab="video">
-          <span class="nav-icon">🎬</span>
-          <div>
-            <div class="nav-title">Video Studio</div>
-            <div class="nav-desc">Wan2.1 &amp; LTX Motion</div>
-          </div>
-        </button>
-        <button class="nav-item" data-tab="agent">
-          <span class="nav-icon">🛡️</span>
-          <div>
-            <div class="nav-title">Safe Agents</div>
-            <div class="nav-desc">Sandboxed Multi-Step AI</div>
-          </div>
-        </button>
+      <aside class="nav-rail" id="mainNavRail">
+        <div class="gemini-sidebar-top">
+          <button id="btnSideNewChat" class="btn-gemini-new-chat">
+            <span style="font-size:16px;">✏️</span>
+            <span>New Chat</span>
+          </button>
+        </div>
 
-        <div class="nav-section-label">Configuration</div>
-        <button class="nav-item" data-tab="models">
-          <span class="nav-icon">🤗</span>
-          <div>
-            <div class="nav-title">HF Models &amp; Presets</div>
-            <div class="nav-desc">Weights &amp; System Prompts</div>
+        <div class="gemini-sidebar-scroll">
+          <!-- Workspace Quick Mode Jumper -->
+          <div class="sidebar-category-header">Studio Modes</div>
+          <div class="gemini-modes-grid">
+            <button class="gemini-mode-btn active" data-tab="chat">💬 Chat</button>
+            <button class="gemini-mode-btn" data-tab="image">🎨 Image</button>
+            <button class="gemini-mode-btn" data-tab="novel">📖 Novel</button>
+            <button class="gemini-mode-btn" data-tab="video">🎬 Video</button>
+            <button class="gemini-mode-btn" data-tab="agent">🛡️ Agent</button>
           </div>
-        </button>
-        <button class="nav-item" data-tab="setup">
-          <span class="nav-icon">⚙️</span>
-          <div>
-            <div class="nav-title">Colab Auto-Setup</div>
-            <div class="nav-desc">Notebook &amp; 200 CU Rules</div>
-          </div>
-        </button>
 
-        <div class="nav-footer-card">
-          <div class="nav-footer-row">
+          <!-- Grouped Recent Tasks & Chats -->
+          <div class="sidebar-category-header" style="margin-top:12px;">Recent Chats</div>
+          <div id="geminiRecentChatsList" class="gemini-history-list"></div>
+
+          <div class="sidebar-category-header" style="margin-top:12px;">Recent Generations</div>
+          <div id="geminiRecentGenerationsList" class="gemini-history-list"></div>
+
+          <div class="sidebar-category-header" style="margin-top:12px;">Settings &amp; Model Hub</div>
+          <div style="display:flex; flex-direction:column; gap:4px; padding:0 6px;">
+            <button class="gemini-link-btn" data-tab="models">🤗 HuggingFace Models</button>
+            <button class="gemini-link-btn" data-tab="setup">⚙️ Auto-Setup &amp; CU Rules</button>
+          </div>
+        </div>
+
+        <div class="gemini-sidebar-footer">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; font-size:11px; color:var(--text-muted);">
             <span>Active Persona</span>
-            <button id="btnSideSetDefault" class="btn-link" title="Set active persona as your permanent default">Set Default</button>
+            <button id="btnSideSetDefault" class="btn-link" style="font-size:10px;">Set Default</button>
           </div>
           <select id="globalPresetSelect" class="compact-select"></select>
           <div class="nav-footer-meta" id="navSamplingSummary">Temp 0.78 · Top-P 0.92</div>
@@ -481,6 +444,15 @@
                 ✨ Enhance Quality Prompt
               </button>
               <span class="composer-hint">⌨️ Press <b>Enter</b> to send · <b>Shift+Enter</b> for new line</span>
+            </div>
+            <!-- Inline Google-Gemini Style Mode Picker -->
+            <div class="composer-mode-bar">
+              <span class="mode-bar-label">Studio Mode:</span>
+              <button type="button" class="mode-pill active" data-switch-mode="chat">💬 Chat LLM</button>
+              <button type="button" class="mode-pill" data-switch-mode="image">🎨 Image Studio</button>
+              <button type="button" class="mode-pill" data-switch-mode="novel">📖 Novel Studio</button>
+              <button type="button" class="mode-pill" data-switch-mode="video">🎬 Video Studio</button>
+              <button type="button" class="mode-pill" data-switch-mode="agent">🛡️ Safe Agents</button>
             </div>
             <textarea id="chatPromptInput" rows="3" placeholder="Message... (Enter to send, Shift+Enter for new line)"></textarea>
             <div class="composer-actions">
@@ -881,6 +853,21 @@
       <!-- RIGHT DOCK: SEQUENTIAL BATCH TASK QUEUE -->
       <aside class="queue-dock">
         <div class="queue-dock-header">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <button id="btnCloseQueueDock" class="btn-icon-close" title="Hide Queue Pane">✕</button>
+            <div>
+              <h3 style="font-size:14px; margin:0;">Batch Task Queue</h3>
+              <p class="queue-sub" style="margin:0;">Sequential Auto-Runner</p>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <button id="btnClearCompletedQueue" class="btn-compact btn-secondary" style="font-size:10px; padding:3px 6px;">Clear Done</button>
+            <label class="switch-pill" title="Automatically run next task when current finishes" style="font-size:11px;">
+              <input id="queueAutoRunCheckbox" type="checkbox" checked />
+              <span>Auto</span>
+            </label>
+          </div>
+        </div>
           <div>
             <h3>Batch Task Queue</h3>
             <p class="queue-sub">Sequential Auto-Runner &amp; VRAM Swapper</p>

@@ -1839,3 +1839,479 @@ button:active {
 .chat-bubble.error .bubble-body { color: #fca5a5; }
 
 #startupStagesBanner { display: none !important; }
+
+
+/* ==========================================================================
+   ENHANCED GOOGLE-GEMINI STYLE LAYOUT & WORKBENCH STYLING
+   ========================================================================== */
+
+/* 1. TOP TELEMETRY BAR (SIMPLIFIED & SLEEK) */
+.top-telemetry-bar {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  height: 52px !important;
+  padding: 0 16px !important;
+  background: #090d16 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  gap: 16px !important;
+  z-index: 40 !important;
+}
+
+.brand-cluster {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  min-width: 200px !important;
+}
+
+.btn-icon-toggle {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-icon-toggle:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.brand-text-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-title {
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.2px;
+  color: #f8fafc;
+}
+
+.brand-sub {
+  font-size: 11px !important;
+  color: var(--accent-cyan) !important;
+  max-width: 170px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.top-center-stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  justify-content: center;
+}
+
+.top-stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  color: #e2e8f0;
+}
+
+.top-stat-pill.status-pill {
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.top-stat-pill .pill-label {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.cu-mini-bar {
+  width: 44px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-left: 4px;
+}
+
+.top-actions-cluster {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-queue-toggle {
+  background: rgba(245, 158, 11, 0.12) !important;
+  border: 1px solid rgba(245, 158, 11, 0.3) !important;
+  color: var(--accent-amber) !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.btn-queue-toggle:hover {
+  background: rgba(245, 158, 11, 0.22) !important;
+}
+
+.queue-count-badge {
+  background: var(--accent-amber);
+  color: #000;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 10px;
+}
+
+/* 2. GOOGLE GEMINI STYLE WORKBENCH GRID */
+.workbench-grid {
+  display: grid !important;
+  grid-template-columns: 240px 1fr 310px !important;
+  transition: grid-template-columns 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  min-height: 0;
+  flex: 1;
+}
+
+/* When Queue Pane is hidden */
+.workbench-grid.queue-hidden {
+  grid-template-columns: 240px 1fr 0px !important;
+}
+
+.workbench-grid.queue-hidden .queue-dock {
+  display: none !important;
+}
+
+/* When Nav Rail is collapsed */
+.workbench-grid.nav-collapsed {
+  grid-template-columns: 60px 1fr 310px !important;
+}
+
+.workbench-grid.nav-collapsed.queue-hidden {
+  grid-template-columns: 60px 1fr 0px !important;
+}
+
+/* 3. GEMINI STYLE SIDEBAR */
+.nav-rail {
+  background: #090d16 !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+  padding: 12px 8px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+  overflow: hidden !important;
+}
+
+.gemini-sidebar-top {
+  padding: 0 4px 10px;
+}
+
+.btn-gemini-new-chat {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #f8fafc;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 14px;
+  border-radius: 24px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-gemini-new-chat:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.gemini-sidebar-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-category-header {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 6px 8px;
+}
+
+.gemini-modes-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 0 4px;
+}
+
+.gemini-mode-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 7px 8px;
+  border-radius: 8px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.gemini-mode-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+
+.gemini-mode-btn.active {
+  background: rgba(14, 165, 233, 0.15);
+  border-color: rgba(14, 165, 233, 0.4);
+  color: var(--accent-cyan);
+  font-weight: 600;
+}
+
+.gemini-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.gemini-history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 10px;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gemini-history-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+
+.gemini-history-item.active {
+  background: rgba(255, 255, 255, 0.09);
+  color: #fff;
+  font-weight: 600;
+}
+
+.gemini-history-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.gemini-history-del {
+  opacity: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+
+.gemini-history-item:hover .gemini-history-del {
+  opacity: 1;
+}
+
+.gemini-history-del:hover {
+  color: #f87171;
+}
+
+.gemini-link-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 12px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.gemini-link-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+}
+
+.gemini-sidebar-footer {
+  padding: 10px 6px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin-top: 6px;
+}
+
+/* 4. INLINE MODE PICKER IN PROMPT INPUT (GOOGLE GEMINI LAYOUT) */
+.composer-mode-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 2px;
+  overflow-x: auto;
+}
+
+.mode-bar-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-right: 2px;
+}
+
+.mode-pill {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 12px;
+  border-radius: 16px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.mode-pill:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.mode-pill.active {
+  background: rgba(14, 165, 233, 0.18);
+  border-color: var(--accent-cyan);
+  color: #38bdf8;
+  font-weight: 600;
+}
+
+/* 5. SLIMMED DOWN, HIGH DENSITY BATCH TASK QUEUE CARDS */
+.queue-dock {
+  background: #090d16 !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.08) !important;
+  padding: 10px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  overflow: hidden !important;
+}
+
+.btn-icon-close {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.btn-icon-close:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.queue-items-container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px !important;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.queue-card {
+  background: rgba(15, 23, 42, 0.7) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-radius: 6px !important;
+  padding: 5px 8px !important;
+  gap: 3px !important;
+  transition: all 0.15s ease !important;
+}
+
+.queue-card.RUNNING {
+  border-color: var(--accent-amber) !important;
+  background: rgba(245, 158, 11, 0.08) !important;
+}
+
+.queue-card.COMPLETED {
+  border-color: rgba(16, 185, 129, 0.25) !important;
+  opacity: 0.85;
+}
+
+.queue-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 4px;
+}
+
+.queue-badge {
+  font-size: 9px !important;
+  padding: 1px 4px !important;
+  border-radius: 3px !important;
+}
+
+.queue-title {
+  font-size: 11.5px !important;
+  font-weight: 500 !important;
+  line-height: 1.3 !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.queue-result {
+  font-size: 10px !important;
+  color: var(--text-muted) !important;
+  line-height: 1.2 !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.queue-vram-swap {
+  font-size: 9px !important;
+  color: var(--accent-cyan) !important;
+}
+
+/* 6. THUMBNAIL ASPECT RATIO & CRISP DISPLAY FIX */
+.media-visual-wrap {
+  position: relative !important;
+  width: 100% !important;
+  aspect-ratio: 16 / 9 !important;
+  height: auto !important;
+  min-height: 180px !important;
+  background: #020617 !important;
+  overflow: hidden !important;
+}
+
+.media-visual {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  display: block !important;
+}
