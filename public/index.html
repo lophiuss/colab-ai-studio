@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/styles.css?v=20261101_v3" />
+  <link rel="stylesheet" href="/styles.css?v=20261101_v4" />
 </head>
 <body>
   <!-- LOGIN OVERLAY (Triggers Auto-Run Colab on Sign-In) -->
@@ -880,7 +880,7 @@
       </main>
 
       <!-- RIGHT DOCK: SEQUENTIAL BATCH TASK QUEUE -->
-      <aside class="queue-dock">
+      <aside class="queue-dock" id="batchQueueDock">
         <div class="queue-dock-header">
           <div style="display:flex; align-items:center; gap:8px;">
             <button id="btnCloseQueueDock" class="btn-icon-close" title="Hide Queue Pane">✕</button>
@@ -897,24 +897,12 @@
             </label>
           </div>
         </div>
-          <div>
-            <h3>Batch Task Queue</h3>
-            <p class="queue-sub">Sequential Auto-Runner &amp; VRAM Swapper</p>
-          </div>
-          <label class="switch-pill" title="Automatically run next task when current finishes">
-            <input id="queueAutoRunCheckbox" type="checkbox" checked />
-            <span>Auto-Run</span>
-          </label>
-        </div>
 
         <div class="queue-quick-actions">
           <button id="btnQuickBatchDemo" class="btn-compact btn-amber" title="Queue a multi-modal pipeline (Novel Chapter + Concept Image + Safe Agent Audit)">
             + Queue Multi-Modal Pipeline (3 Tasks)
           </button>
-          <button id="btnClearCompletedQueue" class="btn-compact btn-secondary">Clear Done</button>
         </div>
-
-        <!-- Add Custom Task to Queue -->
         <form id="quickQueueForm" class="quick-queue-form">
           <div class="field-row-2">
             <select id="quickQueueType">
@@ -948,6 +936,6 @@
   </div>
 
   <div id="toastContainer" class="toast-container"></div>
-  <script type="module" src="/app.js?v=20261101_v3"></script>
+  <script type="module" src="/app.js?v=20261101_v4"></script>
 </body>
 </html>

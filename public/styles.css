@@ -689,7 +689,12 @@ button:active {
 .workspace-panel {
   display: none;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
+  min-height: 100%;
+  height: auto;
+}
+
+#tab-chat.workspace-panel {
   height: 100%;
 }
 
@@ -1993,6 +1998,13 @@ button:active {
 
 .workbench-grid.queue-hidden .queue-dock {
   display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  border: none !important;
 }
 
 /* When Nav Rail is collapsed */
@@ -2623,7 +2635,9 @@ button:active {
   display: grid !important;
   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)) !important;
   gap: 18px !important;
-  padding: 4px 2px 24px !important;
+  padding: 8px 2px 32px !important;
+  min-height: 320px !important;
+  overflow: visible !important;
 }
 
 .media-card {

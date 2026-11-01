@@ -1084,15 +1084,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const btnToggleQueue = document.getElementById('btnToggleQueueDock');
   const btnCloseQueue = document.getElementById('btnCloseQueueDock');
 
-  // Check saved preference: default is hidden so thumbnails and gallery take full width
-  const savedQueue = localStorage.getItem('colab_queue_visible');
-  if (savedQueue === 'true') {
-    workbenchGrid.classList.remove('queue-hidden');
-    btnToggleQueue?.classList.add('active');
-  } else {
-    workbenchGrid.classList.add('queue-hidden');
-    btnToggleQueue?.classList.remove('active');
-  }
+    // Always default to hidden so the image studio and full gallery take full height & width
+  workbenchGrid.classList.add('queue-hidden');
+  btnToggleQueue?.classList.remove('active');
+  localStorage.setItem('colab_queue_visible', 'false');
 
   if (btnToggleQueue && workbenchGrid) {
     btnToggleQueue.addEventListener('click', () => {
