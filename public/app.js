@@ -1120,30 +1120,8 @@ function renderGeminiSidebar() {
     });
   }
 
-  // 2. Render Recent Generations
-  const genListEl = document.getElementById('geminiRecentGenerationsList');
-  if (genListEl) {
-    const images = (appState.images || []).slice(0, 8);
-    genListEl.innerHTML = images.length ? images.map(img => `
-      <div class="gemini-history-item" data-img-id="${img.id}">
-        <span class="gemini-history-title">🎨 ${escapeHtml(img.subjectTag || img.prompt.slice(0, 24))}</span>
-      </div>
-    `).join('') : '<div style="font-size:11px; color:var(--text-muted); padding:4px 8px;">No generations yet</div>';
-
-    genListEl.querySelectorAll('.gemini-history-item').forEach(item => {
-      item.onclick = () => {
-        switchMode('image');
-        const img = appState.images.find(i => i.id === item.dataset.imgId);
-        if (img) {
-          const finalUrl = img.imageUrl || ('/media/' + (img.fileName || (img.id + '.jpg')));
-          const properName = getDescriptiveFilename(img);
-          const shortModel = (img.model || 'Diffusers').split('/').pop();
-          const meta = `${img.aspectRatio || '16:9'} · Seed ${img.seed} · ${shortModel}`;
-          openLightbox(finalUrl, img.prompt, meta, properName);
-        }
-      };
-    });
-  }
+  // 2. Render Artifacts Hub with Type Filter & Cross-Studio Navigation
+  renderArtifactsSection();
 }
 
 function switchMode(mode) {
@@ -2370,3 +2348,222 @@ document.addEventListener('DOMContentLoaded', async () => {
     await fetchState();
   });
 });
+
+let currentArtifactFilter = 'all';
+
+function getAllArtifacts(filter = 'all') {
+  if (!appState) return [];
+  const artifacts = [];
+
+  // 1. Generated Images
+  if (Array.isArray(appState.images)) {
+    appState.images.forEach(img => {
+      if (!img) return;
+      const finalUrl = img.imageUrl || ('/media/' + (img.fileName || (img.id + '.jpg')));
+      const properName = typeof getDescriptiveFilename === 'function' ? getDescriptiveFilename(img) : (img.prompt || 'render.jpg');
+      const shortModel = (img.model || 'FLUX').split('/').pop();
+      const meta = `${img.aspectRatio || '16:9'} · s${img.seed || 0}`;
+      const title = img.subjectTag || (img.prompt ? img.prompt.split(',')[0].trim().slice(0, 28) : 'Untitled Image');
+
+      artifacts.push({
+        id: img.id,
+        type: 'image',
+        typeLabel: 'Image',
+        icon: '🖼️',
+        title,
+        meta: `${shortModel} · ${meta}`,
+        thumb: finalUrl,
+        downloadFilename: properName,
+        createdAt: img.createdAt ? new Date(img.createdAt).getTime() : 0,
+        raw: img
+      });
+    });
+  }
+
+  // 2. Synthesized Videos
+  if (Array.isArray(appState.videos)) {
+    appState.videos.forEach(vid => {
+      if (!vid) return;
+      const finalUrl = vid.frameUrl || vid.videoUrl || '';
+      const title = vid.prompt ? vid.prompt.slice(0, 28) : 'Video Scene';
+      const meta = `${vid.cameraMotion || 'Dolly'} · ${vid.durationSec || 5}s · 24fps`;
+
+      artifacts.push({
+        id: vid.id,
+        type: 'video',
+        typeLabel: 'Video',
+        icon: '🎥',
+        title,
+        meta,
+        thumb: finalUrl,
+        downloadFilename: vid.fileName || 'video.jpg',
+        createdAt: vid.createdAt ? new Date(vid.createdAt).getTime() : 0,
+        raw: vid
+      });
+    });
+  }
+
+  // 3. Documents & Story Chapters (Novel Studio & future document formats)
+  if (appState.novel && Array.isArray(appState.novel.chapters)) {
+    appState.novel.chapters.forEach(chap => {
+      if (!chap) return;
+      const wordCount = chap.wordCount || (chap.content ? chap.content.split(/\s+/).filter(Boolean).length : 0);
+      artifacts.push({
+        id: chap.id,
+        type: 'doc',
+        typeLabel: 'Doc',
+        icon: '📄',
+        title: chap.title || 'Untitled Chapter',
+        meta: `${wordCount} words · Story`,
+        thumb: null,
+        createdAt: chap.createdAt ? new Date(chap.createdAt).getTime() : 0,
+        raw: chap
+      });
+    });
+  }
+
+  // Future-proof: Arbitrary documents registered in appState.documents (e.g. .md, .txt, .pdf, .json)
+  if (Array.isArray(appState.documents)) {
+    appState.documents.forEach(doc => {
+      if (!doc) return;
+      artifacts.push({
+        id: doc.id,
+        type: 'doc',
+        typeLabel: doc.format ? doc.format.toUpperCase() : 'Doc',
+        icon: doc.icon || '📄',
+        title: doc.title || 'Document',
+        meta: doc.meta || 'Document File',
+        thumb: doc.thumb || null,
+        createdAt: doc.createdAt ? new Date(doc.createdAt).getTime() : 0,
+        raw: doc
+      });
+    });
+  }
+
+  // 4. Agent Audits & Verified Deliverables
+  if (appState.agents && Array.isArray(appState.agents.runs)) {
+    appState.agents.runs.forEach(run => {
+      if (!run) return;
+      const title = run.goal ? (run.goal.slice(0, 26) + '...') : run.agentName;
+      const meta = `${run.agentName.split(' ')[0]} · Verified`;
+
+      artifacts.push({
+        id: run.id,
+        type: 'agent',
+        typeLabel: 'Audit',
+        icon: '🤖',
+        title,
+        meta,
+        thumb: null,
+        createdAt: run.timestamp ? new Date(run.timestamp).getTime() : 0,
+        raw: run
+      });
+    });
+  }
+
+  // Sort newest first
+  artifacts.sort((a, b) => b.createdAt - a.createdAt);
+
+  if (filter && filter !== 'all') {
+    return artifacts.filter(a => a.type === filter);
+  }
+  return artifacts;
+}
+
+function renderArtifactsSection() {
+  const artifactsListEl = document.getElementById('geminiArtifactsList') || document.getElementById('geminiRecentGenerationsList');
+  const countBadgeEl = document.getElementById('artifactsCountBadge');
+  const filterBarEl = document.getElementById('artifactsFilterBar');
+
+  if (filterBarEl) {
+    filterBarEl.querySelectorAll('.btn-artifact-filter').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.filter === currentArtifactFilter);
+      btn.onclick = () => {
+        currentArtifactFilter = btn.dataset.filter;
+        renderGeminiSidebar();
+      };
+    });
+  }
+
+  const allArtifacts = getAllArtifacts('all');
+  const filteredArtifacts = getAllArtifacts(currentArtifactFilter);
+
+  if (countBadgeEl) {
+    countBadgeEl.textContent = currentArtifactFilter === 'all' 
+      ? allArtifacts.length 
+      : `${filteredArtifacts.length} / ${allArtifacts.length}`;
+  }
+
+  if (artifactsListEl) {
+    if (!filteredArtifacts.length) {
+      const label = currentArtifactFilter === 'all' ? 'artifacts' : `${currentArtifactFilter} products`;
+      artifactsListEl.innerHTML = `<div style="font-size:11px; color:var(--text-muted); padding:10px 8px; text-align:center;">No ${escapeHtml(label)} created yet</div>`;
+      return;
+    }
+
+    artifactsListEl.innerHTML = filteredArtifacts.map(art => {
+      const thumbHtml = art.thumb
+        ? `<img class="artifact-thumb" src="${art.thumb}" alt="${escapeHtml(art.title)}" onerror="this.style.display='none';" />`
+        : `<div class="artifact-icon-box">${art.icon}</div>`;
+
+      return `
+        <div class="artifact-item" data-artifact-id="${art.id}" data-artifact-type="${art.type}" title="${escapeHtml(art.title)} (${art.typeLabel})">
+          ${thumbHtml}
+          <div class="artifact-info">
+            <div class="artifact-title">${escapeHtml(art.title)}</div>
+            <div class="artifact-meta">
+              <span class="artifact-type-tag">${art.typeLabel}</span>
+              <span>${escapeHtml(art.meta)}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    artifactsListEl.querySelectorAll('.artifact-item').forEach(item => {
+      item.onclick = () => {
+        const type = item.dataset.artifactType;
+        const id = item.dataset.artifactId;
+        const art = filteredArtifacts.find(a => a.id === id);
+
+        if (type === 'image') {
+          switchMode('image');
+          const img = appState.images?.find(i => i.id === id);
+          if (img) {
+            const finalUrl = img.imageUrl || ('/media/' + (img.fileName || (img.id + '.jpg')));
+            const properName = typeof getDescriptiveFilename === 'function' ? getDescriptiveFilename(img) : 'render.jpg';
+            const shortModel = (img.model || 'Diffusers').split('/').pop();
+            const meta = `${img.aspectRatio || '16:9'} · Seed ${img.seed} · ${shortModel}`;
+            openLightbox(finalUrl, img.prompt, meta, properName);
+          }
+        } else if (type === 'video') {
+          switchMode('video');
+          const vid = appState.videos?.find(v => v.id === id);
+          if (vid) {
+            const properName = vid.fileName || 'video.jpg';
+            openLightbox(vid.frameUrl, vid.prompt, `${vid.cameraMotion || 'Motion'} · ${vid.durationSec || 5}s · Wan 2.1`, properName);
+          }
+        } else if (type === 'doc') {
+          switchMode('novel');
+          if (appState.novel) {
+            appState.novel.activeChapterId = id;
+            renderNovelStudio();
+            const textarea = document.getElementById('novelChapterContent');
+            if (textarea) {
+              textarea.focus();
+              textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            showToast(`Opened document: "${art ? art.title : 'Chapter'}"`);
+          }
+        } else if (type === 'agent') {
+          switchMode('agent');
+          const agentRunsContainer = document.getElementById('agentRunsContainer');
+          if (agentRunsContainer) agentRunsContainer.scrollIntoView({ behavior: 'smooth' });
+          showToast(`Opened agent report: "${art ? art.title : 'Audit'}"`);
+        }
+      };
+    });
+  }
+}
+window.getAllArtifacts = getAllArtifacts;
+window.renderArtifactsSection = renderArtifactsSection;
