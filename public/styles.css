@@ -1499,15 +1499,15 @@ button:active {
 /* LIGHTBOX DIALOG STYLES */
 .lightbox-dialog {
   background: #0b101b;
-  border: 1px solid #1e293b;
-  border-radius: 12px;
-  max-width: 900px;
-  width: 92vw;
-  max-height: 92vh;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 14px;
+  max-width: 1120px;
+  width: 95vw;
+  max-height: 94vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 25px 60px rgba(0,0,0,0.85);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.9);
 }
 
 .lightbox-header {
@@ -1546,10 +1546,11 @@ button:active {
 
 .lightbox-media-img {
   max-width: 100%;
-  max-height: 68vh;
+  max-height: 76vh;
   object-fit: contain;
-  border-radius: 6px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  display: block;
 }
 
 .lightbox-footer {

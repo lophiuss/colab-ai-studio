@@ -709,6 +709,8 @@ function nextLightboxImage() {
   updateLightboxView(newIdx);
 }
 
+window.closeLightbox = closeLightbox;
+window.closeTraceModal = closeTraceModal;
 function closeLightbox() {
   const modal = document.getElementById('mediaLightboxModal');
   if (modal) modal.classList.add('hidden');
@@ -1019,8 +1021,12 @@ function renderGeminiSidebar() {
       item.onclick = () => {
         switchMode('image');
         const img = appState.images.find(i => i.id === item.dataset.imgId);
-        if (img && typeof openTraceModal === 'function') {
-          openTraceModal(img);
+        if (img) {
+          const finalUrl = img.imageUrl || ('/media/' + (img.fileName || (img.id + '.jpg')));
+          const properName = getDescriptiveFilename(img);
+          const shortModel = (img.model || 'Diffusers').split('/').pop();
+          const meta = `${img.aspectRatio || '16:9'} · Seed ${img.seed} · ${shortModel}`;
+          openLightbox(finalUrl, img.prompt, meta, properName);
         }
       };
     });
@@ -1232,19 +1238,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  document.getElementById('btnWakeColab').addEventListener('click', async () => {
+  document.getElementById('btnWakeColab')?.addEventListener('click', async () => {
     await apiPost('/api/colab/start', { reason: 'Dashboard Wake Button' });
     showToast('Colab Auto-Launcher started! Executing colab_ai_worker.ipynb...');
     await fetchState();
   });
 
-  document.getElementById('btnShutdownColab').addEventListener('click', async () => {
+  document.getElementById('btnShutdownColab')?.addEventListener('click', async () => {
     await apiPost('/api/colab/shutdown');
     showToast('Colab GPU runtime unassigned. Compute Unit burn rate is now 0.00 CU/hr.');
     await fetchState();
   });
 
-  document.getElementById('btnCalibrateCU').addEventListener('click', async () => {
+  document.getElementById('btnCalibrateCU')?.addEventListener('click', async () => {
     const input = prompt('Enter your current Google Colab Compute Unit balance (out of 200 CU):', appState?.computeUnits?.remainingCU?.toFixed(2) || '186.40');
     if (input !== null && !isNaN(Number(input))) {
       await apiPost('/api/colab/config', { remainingCU: Number(input) });
@@ -1703,6 +1709,35 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Lightbox Modal Handlers
     // Generation Trace Modal Listeners
+  
+  const traceThumbEl = document.getElementById('traceModalThumb');
+  if (traceThumbEl) {
+    traceThumbEl.onclick = () => {
+      if (activeTraceImage) {
+        closeTraceModal();
+        const finalUrl = activeTraceImage.imageUrl || ('/media/' + (activeTraceImage.fileName || (activeTraceImage.id + '.jpg')));
+        const properName = getDescriptiveFilename(activeTraceImage);
+        const shortModel = (activeTraceImage.model || 'Diffusers').split('/').pop();
+        const meta = `${activeTraceImage.aspectRatio || '16:9'} · Seed ${activeTraceImage.seed} · ${shortModel}`;
+        openLightbox(finalUrl, activeTraceImage.prompt, meta, properName);
+      }
+    };
+  }
+
+  const btnOpenFullHd = document.getElementById('btnOpenTraceFullHD');
+  if (btnOpenFullHd) {
+    btnOpenFullHd.onclick = () => {
+      if (activeTraceImage) {
+        closeTraceModal();
+        const finalUrl = activeTraceImage.imageUrl || ('/media/' + (activeTraceImage.fileName || (activeTraceImage.id + '.jpg')));
+        const properName = getDescriptiveFilename(activeTraceImage);
+        const shortModel = (activeTraceImage.model || 'Diffusers').split('/').pop();
+        const meta = `${activeTraceImage.aspectRatio || '16:9'} · Seed ${activeTraceImage.seed} · ${shortModel}`;
+        openLightbox(finalUrl, activeTraceImage.prompt, meta, properName);
+      }
+    };
+  }
+
   const btnCloseTrace = document.getElementById('btnCloseTraceModal');
   if (btnCloseTrace) btnCloseTrace.onclick = closeTraceModal;
 
@@ -1818,6 +1853,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       nextLightboxImage();
     } else if (e.key === 'Escape') {
       closeLightbox();
+      closeTraceModal();
     }
   });
 

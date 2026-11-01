@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/styles.css?v=20261101_v5" />
+  <link rel="stylesheet" href="/styles.css?v=20261101_v6" />
 </head>
 <body>
   <!-- LOGIN OVERLAY (Triggers Auto-Run Colab on Sign-In) -->
@@ -170,14 +170,14 @@
   </div>
 
   <!-- FULL HD MEDIA LIGHTBOX MODAL -->
-  <div id="mediaLightboxModal" class="modal-backdrop hidden">
+  <div id="mediaLightboxModal" class="modal-backdrop hidden" onclick="if(event.target===this)closeLightbox()">
     <div class="lightbox-dialog">
       <div class="lightbox-header">
         <div id="lightboxPrompt" class="lightbox-prompt-text">Prompt details...</div>
         <div class="lightbox-header-actions">
           <button id="btnLightboxCopyPrompt" type="button" class="btn-compact btn-secondary">📋 Copy Prompt</button>
           <a id="btnLightboxDownload" href="#" target="_blank" download="render.jpg" class="btn-compact btn-primary">⬇ Download HD</a>
-          <button id="btnCloseLightbox" type="button" class="btn-compact btn-secondary" style="font-size:16px;">✕</button>
+          <button id="btnCloseLightbox" type="button" class="btn-compact btn-secondary" onclick="closeLightbox()" style="font-size:16px;">✕</button>
         </div>
       </div>
       <div class="lightbox-body" style="position:relative; display:flex; align-items:center; justify-content:center;">
@@ -192,20 +192,20 @@
   </div>
 
   <!-- GENERATION TRACE & PARAMETER INSPECTOR MODAL -->
-  <div id="imageTraceModal" class="modal-backdrop hidden">
+  <div id="imageTraceModal" class="modal-backdrop hidden" onclick="if(event.target===this)closeTraceModal()">
     <div class="lightbox-dialog" style="max-width:760px; max-height:90vh; overflow-y:auto;">
       <div class="lightbox-header">
         <div>
           <strong style="font-size:16px; color:var(--accent-amber);">🔍 Generation Trace &amp; Parameters</strong>
           <div class="mono-meta" style="font-size:11.5px; color:var(--text-muted); margin-top:2px;">Complete reproducibility trace: model, seed, settings &amp; prompt</div>
         </div>
-        <button id="btnCloseTraceModal" type="button" class="btn-compact btn-secondary" style="font-size:16px;">✕</button>
+        <button id="btnCloseTraceModal" type="button" class="btn-compact btn-secondary" onclick="closeTraceModal()" style="font-size:16px;">✕</button>
       </div>
 
       <div style="padding:16px 20px; display:flex; flex-direction:column; gap:14px;">
         <!-- Top summary row -->
         <div style="display:flex; gap:16px; align-items:center; background:rgba(15,23,42,0.6); padding:12px; border-radius:8px; border:1px solid var(--border-subtle);">
-          <img id="traceModalThumb" src="" alt="Thumbnail" style="width:110px; height:68px; object-fit:cover; border-radius:6px; border:1px solid rgba(255,255,255,0.1);" />
+          <img id="traceModalThumb" src="" alt="Thumbnail" style="width:240px; height:135px; min-width:240px; object-fit:cover; border-radius:8px; border:1px solid rgba(255,255,255,0.15); cursor:pointer;" title="Click to view in Full HD Lightbox" />
           <div style="flex:1; display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:8px 12px; font-size:12px;">
             <div><span style="color:var(--text-muted);">Model:</span> <strong id="traceChipModel" style="color:var(--accent-cyan);">-</strong></div>
             <div><span style="color:var(--text-muted);">Seed:</span> <code id="traceChipSeed" style="color:var(--accent-amber);">-</code></div>
@@ -247,6 +247,7 @@
       <div class="lightbox-footer" style="display:flex; justify-content:space-between; align-items:center;">
         <button id="btnDownloadSidecarJson" type="button" class="btn-compact btn-secondary">📥 Download Metadata (.json)</button>
         <div style="display:flex; gap:8px;">
+          <button id="btnOpenTraceFullHD" type="button" class="btn-compact btn-secondary">🔍 View Full HD</button>
           <a id="btnDownloadProperImage" href="#" target="_blank" download="render.jpg" class="btn-compact btn-secondary">💾 Download Image</a>
           <button id="btnApplyTraceToStudio" type="button" class="btn-compact btn-primary">🔄 Re-use Settings in Studio</button>
         </div>
@@ -936,6 +937,6 @@
   </div>
 
   <div id="toastContainer" class="toast-container"></div>
-  <script type="module" src="/app.js?v=20261101_v5"></script>
+  <script type="module" src="/app.js?v=20261101_v6"></script>
 </body>
 </html>
