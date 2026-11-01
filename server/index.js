@@ -168,7 +168,7 @@ const DEFAULT_STATE = {
       topP: 0.92,
       topK: 40,
       repetitionPenalty: 1.18,
-      maxTokens: 2048
+      maxTokens: 4096
     },
     list: [
       {
@@ -509,9 +509,8 @@ function loadState() {
 
       // Default & active preset resolution
       merged.presets.defaultPresetId = merged.presets.defaultPresetId || 'preset-natural';
-      if (merged.presets.sampling && merged.presets.sampling.maxTokens > 512) {
-        merged.presets.sampling.maxTokens = 512;
-      }
+      // Token limit cap removed for long 5000+ words support
+      if (merged.presets.sampling && merged.presets.sampling.maxTokens < 2048) { merged.presets.sampling.maxTokens = 4096; }
       // If user had preset-architect set by default or unselected, default to preset-natural
       if (!merged.presets.activePresetId || merged.presets.activePresetId === 'preset-architect') {
         merged.presets.activePresetId = merged.presets.defaultPresetId;
@@ -969,18 +968,42 @@ function buildHistoryPrompt(history, clean) {
 async function generateChatReply(prompt, preset, modelId, opts = {}) {
   const clean = (prompt || '').trim();
   const thinking = !!opts.thinking;
-  let sysPrompt = preset?.systemPrompt || 'You are an intelligent, thoughtful, and creative AI companion with expertise in coding, media synthesis, and literature.';
-  sysPrompt += thinking
-    ? '\n\nBefore answering, reason step by step inside <think>...</think> tags, then write the final answer after the closing tag.'
-    : '\n\nAnswer directly with clarity and depth.';
+  const lengthMode = opts.lengthMode || 'epic';
+
+  // Check if user is asking for long-form / multi-thousand word content
+  const isLongExplicit = /(5000|4000|3000|2000|1000|万字|千字|长篇|详细|详尽|完整|深入|全文|章节|长文|深入探讨|long|in depth|detailed|extensive|expand|继续)/i.test(clean);
+  const isLong = isLongExplicit || lengthMode === 'epic' || lengthMode === 'long';
+
+  // Target token calculation: Up to 8192 tokens for 5000+ words!
+  let targetMaxTokens = 4096;
+  if (lengthMode === 'epic' || (isLongExplicit && /(5000|4000|万字|长篇)/i.test(clean))) {
+    targetMaxTokens = 8192;
+  } else if (lengthMode === 'detailed') {
+    targetMaxTokens = 2048;
+  } else if (lengthMode === 'auto' && !isLongExplicit) {
+    targetMaxTokens = 1024;
+  }
+
+  let sysPrompt = preset?.systemPrompt || 'You are an intelligent, thoughtful, highly articulate and immersive AI companion.';
+  
+  if (isLong) {
+    sysPrompt += '\n\n【重要长文输出指令】：用户明确要求产出极其详尽的长篇深度内容（篇幅目标在 3000~5000 字以上，或完整长篇故事/论文/分析）。请务必彻底展开叙述，分成多个深入的章节、小标题或详细结构模块，包含充实的细节描写、完整论证过程、丰富的角色对话或背景铺陈。坚决禁止简略概括或提前草草收尾，请尽可能发挥最大篇幅，产出篇幅充盈、结构完整、文字量极大的高水准长文！';
+  }
+
+  if (thinking) {
+    sysPrompt += '\n\nBefore answering, reason step by step inside <think>...</think> tags, then write the final comprehensive answer after the closing tag.';
+  } else {
+    sysPrompt += '\n\nAnswer directly with depth, structure, and clarity.';
+  }
+
   let userPrompt = buildHistoryPrompt(opts.history, clean);
   if (!thinking && /qwen3/i.test(modelId || '')) userPrompt = '/no_think ' + userPrompt;
 
-  // 1. Primary Engine: Real Colab A100 GPU when connected
+  // 1. Primary Engine: Colab GPU when connected
   if (state.colab.status === 'READY' && state.colab.tunnelUrl) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000);
+      const timeoutId = setTimeout(() => controller.abort(), 120000);
       const res = await fetch(`${state.colab.tunnelUrl}/generate/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -988,10 +1011,10 @@ async function generateChatReply(prompt, preset, modelId, opts = {}) {
           prompt: userPrompt,
           systemPrompt: sysPrompt,
           model: modelId,
-          temperature: state.presets.sampling.temperature,
-          topP: state.presets.sampling.topP,
-          repetitionPenalty: state.presets.sampling.repetitionPenalty || 1.18,
-          maxTokens: thinking ? 512 : state.presets.sampling.maxTokens
+          temperature: state.presets.sampling.temperature || 0.78,
+          topP: state.presets.sampling.topP || 0.92,
+          repetitionPenalty: state.presets.sampling.repetitionPenalty || 1.15,
+          maxTokens: targetMaxTokens
         }),
         signal: controller.signal
       });
@@ -1000,23 +1023,33 @@ async function generateChatReply(prompt, preset, modelId, opts = {}) {
       if (data && data.ok !== false && data.response) {
         const parts = splitThinking(data.response);
         if (!thinking) return { content: parts.content || parts.thinking, thinking: '', failed: false };
-        if (!parts.content) parts.content = '(Token limit reached while thinking. Ask again or turn Thinking off.)';
+        if (!parts.content) parts.content = '(Token limit reached while thinking. Turn Thinking off or request next section.)';
         return { content: parts.content, thinking: parts.thinking, failed: false };
       }
     } catch (e) {
-      console.warn('Colab GPU chat unreachable, activating High-Intelligence Studio Engine:', e.message);
+      console.warn('Colab GPU chat notice:', e.message);
     }
   }
 
-  // 2. High-Quality Fallback AI Engine (Zero Downtime, Instant Response)
+  // 2. High-Performance Full-Scale Fallback Engine (POST method, 120s timeout for 5000+ words)
   try {
     const fallbackCtrl = new AbortController();
-    const fallbackTid = setTimeout(() => fallbackCtrl.abort(), 16000);
-    const u = `https://text.pollinations.ai/${encodeURIComponent(clean)}?model=openai&system=${encodeURIComponent(sysPrompt)}`;
-    const fbRes = await fetch(u, {
+    const fallbackTid = setTimeout(() => fallbackCtrl.abort(), 120000);
+    const fbRes = await fetch('https://text.pollinations.ai/', {
+      method: 'POST',
       headers: {
+        'Content-Type': 'application/json',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
       },
+      body: JSON.stringify({
+        messages: [
+          { role: 'system', content: sysPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        model: 'openai',
+        seed: Math.floor(100000 + Math.random() * 900000),
+        jsonMode: false
+      }),
       signal: fallbackCtrl.signal
     });
     clearTimeout(fallbackTid);
@@ -1026,14 +1059,36 @@ async function generateChatReply(prompt, preset, modelId, opts = {}) {
         const parts = splitThinking(txt);
         return {
           content: parts.content || txt,
-          thinking: parts.thinking || (thinking ? `Reasoning on user prompt: "${clean.slice(0, 48)}"\nFormulating clear, direct insights...` : ''),
+          thinking: parts.thinking || (thinking ? `Reasoning on user prompt: "${clean.slice(0, 48)}"
+Formulating multi-thousand word comprehensive response...` : ''),
           failed: false
         };
       }
     }
+  } catch (err) {
+    console.warn('Fallback text engine notice:', err.message);
+  }
+
+  // 3. Fallback GET with long timeout
+  try {
+    const getCtrl = new AbortController();
+    const getTid = setTimeout(() => getCtrl.abort(), 60000);
+    const u = `https://text.pollinations.ai/${encodeURIComponent(clean)}?model=openai&system=${encodeURIComponent(sysPrompt)}`;
+    const getRes = await fetch(u, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+      signal: getCtrl.signal
+    });
+    clearTimeout(getTid);
+    if (getRes.ok) {
+      const txt = await getRes.text();
+      if (txt && !txt.includes('Free limit reached') && txt.length > 50) {
+        const parts = splitThinking(txt);
+        return { content: parts.content || txt, thinking: parts.thinking || '', failed: false };
+      }
+    }
   } catch (err) {}
 
-  // 3. Intelligent Persona Knowledge Engine (Offline Resilient)
+  // 4. Intelligent Persona Knowledge Engine (Rich multi-section response)
   return generateIntelligentPersonaResponse(clean, preset, thinking);
 }
 
@@ -2269,7 +2324,7 @@ const server = http.createServer(async (req, res) => {
       const preset = state.presets.list.find(p => p.id === state.presets.activePresetId) || state.presets.list[0];
       if (typeof body.thinking === 'boolean') state.chatSettings.thinking = body.thinking;
       const history = state.chatMessages.filter(m => m.id !== userMsg.id);
-      const reply = await generateChatReply(prompt, preset, state.models.activeTextModel, { history, thinking: state.chatSettings.thinking });
+      const reply = await generateChatReply(prompt, preset, state.models.activeTextModel, { history, thinking: state.chatSettings.thinking, lengthMode: body.lengthMode || "epic" });
       const assistantMsg = {
         id: 'msg-' + (Date.now() + 1),
         role: 'assistant',

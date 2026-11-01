@@ -302,12 +302,40 @@ function renderChatStudio() {
       </div>
       ${m.thinking ? `<details class="think-box"><summary>Thought process</summary><div>${escapeHtml(m.thinking)}</div></details>` : ''}
       <div class="bubble-body">${escapeHtml(m.content).replace(/\n/g, '<br/>')}</div>
+      ${m.role === 'assistant' ? `
+        <div class="chat-bubble-actions" style="display:flex; justify-content:flex-end; gap:6px; margin-top:8px; border-top:1px solid rgba(255,255,255,0.05); padding-top:6px;">
+          <button type="button" class="btn-compact btn-secondary btn-continue-chat" data-msg-id="${m.id}" style="font-size:11px; padding:3px 8px;" title="Let the AI continue writing seamlessly without repeating previous text">⏩ 继续写下去 (Continue Writing)</button>
+          <button type="button" class="btn-compact btn-secondary btn-copy-chat" data-msg-id="${m.id}" style="font-size:11px; padding:3px 8px;" title="Copy Full Text">📋 Copy</button>
+        </div>
+      ` : ''}
     </div>
   `).join('');
   if (transcript.dataset.lastCount !== String(appState.chatMessages.length)) {
     transcript.innerHTML = html;
     transcript.dataset.lastCount = String(appState.chatMessages.length);
     transcript.scrollTop = transcript.scrollHeight;
+    
+    // Wire up Continue Writing and Copy actions
+    transcript.querySelectorAll('.btn-continue-chat').forEach(btn => {
+      btn.onclick = () => {
+        const input = document.getElementById('chatPromptInput');
+        if (input) {
+          input.value = '请紧接着上一段继续写下去，保持同样的细节深度、文风与宏大篇幅，不要总结，直接输出下一章节/段落：';
+          document.getElementById('btnSendChat')?.click();
+        }
+      };
+    });
+
+    transcript.querySelectorAll('.btn-copy-chat').forEach(btn => {
+      btn.onclick = () => {
+        const bubble = btn.closest('.chat-bubble');
+        const bodyText = bubble ? bubble.querySelector('.bubble-body')?.innerText : '';
+        if (bodyText) {
+          navigator.clipboard.writeText(bodyText);
+          showToast('Copied text to clipboard');
+        }
+      };
+    });
   }
 }
 
@@ -1476,7 +1504,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     transcript.scrollTop = transcript.scrollHeight;
 
     try {
-      const res = await apiPost('/api/studio/chat', { prompt, thinking: document.getElementById('chkThinking').checked });
+      const lengthMode = document.getElementById('chatLengthSelect')?.value || 'epic';
+      const res = await apiPost('/api/studio/chat', { prompt, thinking: document.getElementById('chkThinking').checked, lengthMode });
       document.getElementById(typingId)?.remove();
       document.getElementById('optimistic-user-bubble')?.remove();
       isSendingChat = false;
