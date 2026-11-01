@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/styles.css?v=20261101_v10" />
+  <link rel="stylesheet" href="/styles.css?v=20261101_v11" />
 </head>
 <body>
   <!-- LOGIN OVERLAY (Triggers Auto-Run Colab on Sign-In) -->
@@ -353,22 +353,29 @@
           <div class="sidebar-category-header" style="margin-top:12px;">Recent Chats</div>
           <div id="geminiRecentChatsList" class="gemini-history-list"></div>
 
-          <!-- Artifacts Hub (Images, Videos, Documents, Agent Audits) -->
-          <div class="artifacts-section-header">
-            <span class="sidebar-category-header" style="padding:0; margin:0;">Artifacts</span>
-            <span id="artifactsCountBadge" class="artifacts-count-badge">0</span>
+          <!-- Artifacts Hub (Images, Videos, Documents, Agent Audits) with Expand & Collapse -->
+          <div class="artifacts-section-header" id="btnToggleArtifactsCollapse" title="Click to collapse / expand Artifacts">
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span id="artifactsChevron" class="artifacts-chevron">▼</span>
+              <span class="sidebar-category-header" style="padding:0; margin:0; cursor:pointer;">Artifacts</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span id="artifactsCountBadge" class="artifacts-count-badge">0</span>
+            </div>
           </div>
 
-          <!-- Type Filter Button Bar -->
-          <div class="artifacts-filter-bar" id="artifactsFilterBar">
-            <button type="button" class="btn-artifact-filter active" data-filter="all">All</button>
-            <button type="button" class="btn-artifact-filter" data-filter="image">🖼️ Images</button>
-            <button type="button" class="btn-artifact-filter" data-filter="video">🎥 Videos</button>
-            <button type="button" class="btn-artifact-filter" data-filter="doc">📄 Docs</button>
-            <button type="button" class="btn-artifact-filter" data-filter="agent">🤖 Reports</button>
-          </div>
+          <div id="artifactsCollapsibleContent" class="artifacts-collapsible-content">
+            <!-- Type Filter Button Bar -->
+            <div class="artifacts-filter-bar" id="artifactsFilterBar">
+              <button type="button" class="btn-artifact-filter active" data-filter="all">All</button>
+              <button type="button" class="btn-artifact-filter" data-filter="image">🖼️ Images</button>
+              <button type="button" class="btn-artifact-filter" data-filter="video">🎥 Videos</button>
+              <button type="button" class="btn-artifact-filter" data-filter="doc">📄 Docs</button>
+              <button type="button" class="btn-artifact-filter" data-filter="agent">🤖 Reports</button>
+            </div>
 
-          <div id="geminiArtifactsList" class="gemini-history-list artifacts-list-scroll"></div>
+            <div id="geminiArtifactsList" class="gemini-history-list artifacts-list-scroll"></div>
+          </div>
 
           <div class="sidebar-category-header" style="margin-top:12px;">Settings &amp; Model Hub</div>
           <div style="display:flex; flex-direction:column; gap:4px; padding:0 6px;">
@@ -953,6 +960,6 @@
   </div>
 
   <div id="toastContainer" class="toast-container"></div>
-  <script type="module" src="/app.js?v=20261101_v10"></script>
+  <script type="module" src="/app.js?v=20261101_v11"></script>
 </body>
 </html>

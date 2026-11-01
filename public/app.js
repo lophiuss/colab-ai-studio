@@ -2501,11 +2501,31 @@ function getAllArtifacts(filter = 'all') {
   return artifacts;
 }
 
+// Set of currently expanded artifact card IDs
+const expandedArtifactIds = new Set();
+
 function renderArtifactsSection() {
   const artifactsListEl = document.getElementById('geminiArtifactsList') || document.getElementById('geminiRecentGenerationsList');
   const countBadgeEl = document.getElementById('artifactsCountBadge');
   const filterBarEl = document.getElementById('artifactsFilterBar');
+  const btnToggleCollapse = document.getElementById('btnToggleArtifactsCollapse');
+  const collapsibleContent = document.getElementById('artifactsCollapsibleContent');
 
+  // 1. Hook up Section Collapse / Expand
+  if (btnToggleCollapse && collapsibleContent) {
+    const isSectionCollapsed = localStorage.getItem('colab_artifacts_collapsed') === 'true';
+    collapsibleContent.classList.toggle('collapsed', isSectionCollapsed);
+    btnToggleCollapse.classList.toggle('is-collapsed', isSectionCollapsed);
+
+    btnToggleCollapse.onclick = () => {
+      const willCollapse = !collapsibleContent.classList.contains('collapsed');
+      collapsibleContent.classList.toggle('collapsed', willCollapse);
+      btnToggleCollapse.classList.toggle('is-collapsed', willCollapse);
+      localStorage.setItem('colab_artifacts_collapsed', String(willCollapse));
+    };
+  }
+
+  // 2. Hook up Filter Bar
   if (filterBarEl) {
     filterBarEl.querySelectorAll('.btn-artifact-filter').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.filter === currentArtifactFilter);
@@ -2533,28 +2553,75 @@ function renderArtifactsSection() {
     }
 
     artifactsListEl.innerHTML = filteredArtifacts.map(art => {
+      const isExpanded = expandedArtifactIds.has(art.id);
       const thumbHtml = art.thumb
         ? `<img class="artifact-thumb" src="${art.thumb}" alt="${escapeHtml(art.title)}" onerror="this.style.display='none';" />`
         : `<div class="artifact-icon-box">${art.icon}</div>`;
 
+      const promptText = art.raw?.prompt || art.raw?.goal || art.raw?.title || art.title;
+      const downloadHref = art.thumb || art.raw?.videoUrl || '#';
+      const downloadFilename = art.downloadFilename || 'artifact';
+
       return `
-        <div class="artifact-item" data-artifact-id="${art.id}" data-artifact-type="${art.type}" title="${escapeHtml(art.title)} (${art.typeLabel})">
-          ${thumbHtml}
-          <div class="artifact-info">
-            <div class="artifact-title">${escapeHtml(art.title)}</div>
-            <div class="artifact-meta">
-              <span class="artifact-type-tag">${art.typeLabel}</span>
-              <span>${escapeHtml(art.meta)}</span>
+        <div class="artifact-card-wrapper ${isExpanded ? 'is-expanded' : ''}" id="artifact-card-${art.id}" data-artifact-id="${art.id}" data-artifact-type="${art.type}">
+          <div class="artifact-item" data-action="open-studio" title="Click to view/open in Studio">
+            ${thumbHtml}
+            <div class="artifact-info">
+              <div class="artifact-title">${escapeHtml(art.title)}</div>
+              <div class="artifact-meta">
+                <span class="artifact-type-tag">${art.typeLabel}</span>
+                <span>${escapeHtml(art.meta)}</span>
+              </div>
+            </div>
+            <button type="button" class="btn-artifact-expand-item" data-action="toggle-expand" title="${isExpanded ? 'Collapse details' : 'Expand details'}">▾</button>
+          </div>
+          <div class="artifact-item-details">
+            <div class="artifact-details-prompt">${escapeHtml(promptText)}</div>
+            <div class="artifact-details-actions">
+              <button type="button" class="btn-artifact-action-xs btn-inspect-artifact" data-action="open-studio" title="Inspect / View HD">🔍 Inspect</button>
+              <button type="button" class="btn-artifact-action-xs btn-copy-artifact-prompt" data-prompt="${escapeHtml(promptText)}" title="Copy Prompt Text">📋 Copy</button>
+              ${art.thumb || art.raw?.videoUrl ? `<a class="btn-artifact-action-xs" href="${downloadHref}" target="_blank" download="${escapeHtml(downloadFilename)}" title="Download Asset" onclick="event.stopPropagation()">💾 Save</a>` : ''}
             </div>
           </div>
         </div>
       `;
     }).join('');
 
-    artifactsListEl.querySelectorAll('.artifact-item').forEach(item => {
-      item.onclick = () => {
-        const type = item.dataset.artifactType;
-        const id = item.dataset.artifactId;
+    // Expand / collapse individual artifact card
+    artifactsListEl.querySelectorAll('[data-action="toggle-expand"]').forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const wrapper = btn.closest('.artifact-card-wrapper');
+        const id = wrapper?.dataset.artifactId;
+        if (!wrapper || !id) return;
+        if (expandedArtifactIds.has(id)) {
+          expandedArtifactIds.delete(id);
+          wrapper.classList.remove('is-expanded');
+          btn.title = 'Expand details';
+        } else {
+          expandedArtifactIds.add(id);
+          wrapper.classList.add('is-expanded');
+          btn.title = 'Collapse details';
+        }
+      };
+    });
+
+    // Copy prompt text
+    artifactsListEl.querySelectorAll('.btn-copy-artifact-prompt').forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        navigator.clipboard.writeText(btn.dataset.prompt);
+        showToast('Artifact prompt copied to clipboard!');
+      };
+    });
+
+    // Open in corresponding Studio
+    artifactsListEl.querySelectorAll('[data-action="open-studio"]').forEach(item => {
+      item.onclick = (e) => {
+        if (e.target.closest('[data-action="toggle-expand"]') || e.target.closest('.btn-copy-artifact-prompt')) return;
+        const wrapper = item.closest('.artifact-card-wrapper');
+        const type = wrapper?.dataset.artifactType;
+        const id = wrapper?.dataset.artifactId;
         const art = filteredArtifacts.find(a => a.id === id);
 
         if (type === 'image') {
@@ -2571,8 +2638,9 @@ function renderArtifactsSection() {
           switchMode('video');
           const vid = appState.videos?.find(v => v.id === id);
           if (vid) {
-            const properName = vid.fileName || 'video.jpg';
-            openLightbox(vid.frameUrl, vid.prompt, `${vid.cameraMotion || 'Motion'} · ${vid.durationSec || 5}s · Wan 2.1`, properName);
+            const properName = vid.fileName || 'video.mp4';
+            const vUrl = vid.videoUrl || vid.frameUrl;
+            openLightbox(vUrl, vid.prompt, `${vid.cameraMotion || 'Motion'} · ${vid.durationSec || 5}s · Wan 2.1`, properName, !!vid.videoUrl);
           }
         } else if (type === 'doc') {
           switchMode('novel');

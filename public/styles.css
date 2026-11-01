@@ -3078,3 +3078,163 @@ button:active {
   background: #000 !important;
   outline: none !important;
 }
+
+/* ARTIFACTS EXPAND & COLLAPSE STYLES */
+.artifacts-section-header {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  padding: 8px 8px 4px 8px !important;
+  margin-top: 10px !important;
+  cursor: pointer !important;
+  user-select: none !important;
+  border-radius: 6px !important;
+  transition: background 0.15s ease !important;
+}
+
+.artifacts-section-header:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+.artifacts-chevron {
+  font-size: 9px !important;
+  color: var(--text-muted) !important;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  display: inline-block !important;
+  user-select: none !important;
+}
+
+.artifacts-section-header.is-collapsed .artifacts-chevron {
+  transform: rotate(-90deg) !important;
+}
+
+.artifacts-collapsible-content {
+  overflow: hidden !important;
+  transition: max-height 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease !important;
+  max-height: 520px !important;
+  opacity: 1 !important;
+}
+
+.artifacts-collapsible-content.collapsed {
+  max-height: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+/* Individual Artifact Item Expand/Collapse Card */
+.artifact-card-wrapper {
+  display: flex !important;
+  flex-direction: column !important;
+  border-radius: 8px !important;
+  transition: background 0.15s ease, border-color 0.15s ease !important;
+  border: 1px solid transparent !important;
+  margin-bottom: 2px !important;
+}
+
+.artifact-card-wrapper:hover {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.artifact-card-wrapper.is-expanded {
+  background: rgba(15, 23, 42, 0.85) !important;
+  border-color: rgba(245, 158, 11, 0.35) !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5) !important;
+}
+
+.btn-artifact-expand-item {
+  background: transparent !important;
+  border: none !important;
+  color: var(--text-muted) !important;
+  font-size: 13px !important;
+  width: 22px !important;
+  height: 22px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 4px !important;
+  cursor: pointer !important;
+  transition: all 0.18s ease !important;
+  opacity: 0.6 !important;
+  user-select: none !important;
+  padding: 0 !important;
+  flex-shrink: 0 !important;
+}
+
+.artifact-item:hover .btn-artifact-expand-item {
+  opacity: 1 !important;
+}
+
+.btn-artifact-expand-item:hover {
+  color: #fbbf24 !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  transform: scale(1.15) !important;
+}
+
+.artifact-card-wrapper.is-expanded .btn-artifact-expand-item {
+  transform: rotate(180deg) !important;
+  color: #fbbf24 !important;
+  opacity: 1 !important;
+}
+
+.artifact-item-details {
+  display: none !important;
+  padding: 8px 10px 10px 10px !important;
+  border-top: 1px dashed rgba(255, 255, 255, 0.08) !important;
+  font-size: 11px !important;
+  color: var(--text-secondary) !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  background: rgba(0, 0, 0, 0.25) !important;
+  border-radius: 0 0 8px 8px !important;
+}
+
+.artifact-card-wrapper.is-expanded .artifact-item-details {
+  display: flex !important;
+  animation: fadeIn 0.2s ease !important;
+}
+
+.artifact-details-prompt {
+  font-size: 11px !important;
+  line-height: 1.4 !important;
+  color: #e2e8f0 !important;
+  max-height: 75px !important;
+  overflow-y: auto !important;
+  background: rgba(0, 0, 0, 0.35) !important;
+  padding: 6px 8px !important;
+  border-radius: 5px !important;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  word-break: break-word !important;
+}
+
+.artifact-details-actions {
+  display: flex !important;
+  gap: 5px !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  margin-top: 2px !important;
+}
+
+.btn-artifact-action-xs {
+  background: rgba(30, 41, 59, 0.8) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: #f1f5f9 !important;
+  font-size: 10.5px !important;
+  font-weight: 500 !important;
+  padding: 3px 8px !important;
+  border-radius: 5px !important;
+  cursor: pointer !important;
+  text-decoration: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 3px !important;
+  transition: all 0.15s ease !important;
+}
+
+.btn-artifact-action-xs:hover {
+  background: var(--accent-amber) !important;
+  color: #0f172a !important;
+  border-color: #fbbf24 !important;
+}
