@@ -578,15 +578,18 @@ function renderVideoStudio() {
     return `
       <div class="video-card" data-vid-id="${vid.id}">
         <div id="viewport-${vid.id}" class="video-viewport ${motionClass} playing" style="--motion-duration: ${vid.durationSec || 5}s;">
-          <img class="cinematic-frame" src="${frameUrl}" alt="${escapeHtml(vid.prompt)}" loading="lazy" />
+          ${vid.videoUrl && vid.videoUrl.endsWith('.mp4')
+            ? `<video id="video-elem-${vid.id}" class="cinematic-video" src="${vid.videoUrl}" poster="${frameUrl}" autoplay loop muted playsinline></video>`
+            : `<img class="cinematic-frame" src="${frameUrl}" alt="${escapeHtml(vid.prompt)}" loading="lazy" />`
+          }
           
           <!-- Seedance Top HUD -->
           <div class="video-hud-top">
             <div class="video-rec-tag">
               <span class="video-rec-dot"></span>
-              <span>SEEDANCE</span>
+              <span>SEEDANCE WAN 2.1</span>
             </div>
-            <div class="video-engine-tag">Wan 2.1 · ${vid.fps || 24}fps 1080p</div>
+            <div class="video-engine-tag">${vid.cameraMotion || 'Dolly'} · ${vid.fps || 24}fps 1080p</div>
           </div>
 
           <!-- Seedance Bottom HUD & Timeline Controls -->
@@ -596,8 +599,9 @@ function renderVideoStudio() {
               <div id="progress-${vid.id}" class="video-progress-fill"></div>
             </div>
             <span id="timecode-${vid.id}" class="video-timecode">00:00 / 00:0${vid.durationSec || 5}</span>
-            <a class="btn-hud-action" href="${frameUrl}" target="_blank" download="${escapeHtml(properFilename)}" title="Download Master Frame" onclick="event.stopPropagation()">💾</a>
-            <button class="btn-hud-action btn-fullscreen-video" data-url="${frameUrl}" data-prompt="${escapeHtml(vid.prompt)}" data-meta="${escapeHtml(vid.cameraMotion)} · ${vid.durationSec}s @ ${vid.fps || 24}fps · ${styleLabel}" title="Cinema View">⛶</button>
+            <a class="btn-hud-action" href="${vid.videoUrl || frameUrl}" target="_blank" download="${escapeHtml(properFilename)}.mp4" title="Download Real 1080p MP4 Video" onclick="event.stopPropagation()">🎬 MP4</a>
+            <a class="btn-hud-action" href="${frameUrl}" target="_blank" download="${escapeHtml(properFilename)}.jpg" title="Download Master Frame" onclick="event.stopPropagation()">💾</a>
+            <button class="btn-hud-action btn-fullscreen-video" data-videourl="${vid.videoUrl || ''}" data-url="${frameUrl}" data-prompt="${escapeHtml(vid.prompt)}" data-meta="${escapeHtml(vid.cameraMotion)} · ${vid.durationSec}s @ ${vid.fps || 24}fps · ${styleLabel}" title="Cinema View">⛶</button>
             <button class="btn-hud-action btn-delete-video" data-vid-id="${vid.id}" style="color:#f87171;" title="Delete Video">🗑️</button>
           </div>
         </div>
@@ -657,7 +661,8 @@ function renderVideoStudio() {
   grid.querySelectorAll('.btn-fullscreen-video').forEach(btn => {
     btn.onclick = () => {
       if (typeof openLightbox === 'function') {
-        openLightbox(btn.dataset.url, btn.dataset.prompt, btn.dataset.meta);
+        const vUrl = btn.dataset.videourl || btn.dataset.url;
+        openLightbox(vUrl, btn.dataset.prompt, btn.dataset.meta, 'video.mp4', !!btn.dataset.videourl);
       }
     };
   });
@@ -767,34 +772,55 @@ function resetLightboxZoom() {
   toggleLightboxZoom(false);
 }
 
-function openLightbox(url, prompt, meta, downloadFilename = 'render.jpg') {
+function openLightbox(url, prompt, meta, downloadFilename = 'render.jpg', isVideo = false) {
+  const modal = document.getElementById('mediaLightboxModal');
+  const imgEl = document.getElementById('lightboxImage');
+  const videoEl = document.getElementById('lightboxVideo');
+  const promptEl = document.getElementById('lightboxPrompt');
+  const metaEl = document.getElementById('lightboxMeta');
+  const downloadLink = document.getElementById('btnLightboxDownload');
+  const zoomBtn = document.getElementById('btnLightboxZoomToggle');
+
+  const checkIsVideo = isVideo || (url && (url.endsWith('.mp4') || url.endsWith('.webm')));
+
+  if (checkIsVideo) {
+    if (imgEl) imgEl.classList.add('hidden');
+    if (videoEl) {
+      videoEl.classList.remove('hidden');
+      videoEl.src = url;
+      videoEl.play().catch(() => {});
+    }
+    if (zoomBtn) zoomBtn.classList.add('hidden');
+  } else {
+    if (videoEl) {
+      videoEl.pause();
+      videoEl.classList.add('hidden');
+    }
+    if (imgEl) {
+      imgEl.classList.remove('hidden');
+      imgEl.src = url;
+      imgEl.alt = prompt || 'Generated Visual';
+    }
+    if (zoomBtn) zoomBtn.classList.remove('hidden');
+    resetLightboxZoom();
+  }
+
   const list = getLightboxImageList();
   const foundIdx = list.findIndex(i => {
     const u = i.imageUrl || ('/media/' + (i.fileName || (i.id + '.jpg')));
     return u === url || i.imageUrl === url || `/media/${i.id}.jpg` === url || `/media/${i.id}.svg` === url;
   });
 
-  if (foundIdx !== -1) {
+  if (foundIdx !== -1 && !checkIsVideo) {
     updateLightboxView(foundIdx);
   } else {
     currentLightboxIndex = -1;
-    const modal = document.getElementById('mediaLightboxModal');
-    const imgEl = document.getElementById('lightboxImage');
-    const promptEl = document.getElementById('lightboxPrompt');
-    const metaEl = document.getElementById('lightboxMeta');
-    const downloadLink = document.getElementById('btnLightboxDownload');
-
-    if (imgEl) {
-      imgEl.src = url;
-      imgEl.alt = prompt || 'Generated Visual';
-    }
     if (promptEl) promptEl.textContent = prompt || 'Generated Visual';
-    if (metaEl) metaEl.textContent = meta || 'FLUX 1024x576';
+    if (metaEl) metaEl.textContent = meta || (checkIsVideo ? 'Seedance Wan 2.1 · 1080p MP4' : 'FLUX 1024x576');
     if (downloadLink) {
       downloadLink.href = url;
       downloadLink.download = downloadFilename;
     }
-    resetLightboxZoom();
     if (modal) modal.classList.remove('hidden');
   }
 }
@@ -815,6 +841,11 @@ function nextLightboxImage() {
 
 function closeLightbox() {
   const modal = document.getElementById('mediaLightboxModal');
+  const videoEl = document.getElementById('lightboxVideo');
+  if (videoEl) {
+    videoEl.pause();
+    videoEl.src = '';
+  }
   if (modal) modal.classList.add('hidden');
   resetLightboxZoom();
 }

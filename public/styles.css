@@ -3058,3 +3058,23 @@ button:active {
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: var(--accent-cyan);
 }
+
+/* Real Cinematic Video Player & Lightbox Video Styles */
+.cinematic-video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  display: block !important;
+  background: #000 !important;
+}
+
+.lightbox-media-video {
+  max-width: 100% !important;
+  max-height: 76vh !important;
+  object-fit: contain !important;
+  border-radius: 8px !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7) !important;
+  display: block !important;
+  background: #000 !important;
+  outline: none !important;
+}

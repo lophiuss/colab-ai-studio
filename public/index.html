@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/styles.css?v=20261101_v9" />
+  <link rel="stylesheet" href="/styles.css?v=20261101_v10" />
 </head>
 <body>
   <!-- LOGIN OVERLAY (Triggers Auto-Run Colab on Sign-In) -->
@@ -184,6 +184,7 @@
       <div class="lightbox-body" style="position:relative; display:flex; align-items:center; justify-content:center;">
         <button id="btnLightboxPrev" class="lightbox-nav-btn prev" title="Previous photo (Left arrow key)">◀</button>
         <img id="lightboxImage" class="lightbox-media-img" src="" alt="Full preview" />
+        <video id="lightboxVideo" class="lightbox-media-video hidden" autoplay loop controls playsinline></video>
         <button id="btnLightboxNext" class="lightbox-nav-btn next" title="Next photo (Right arrow key)">▶</button>
       </div>
       <div class="lightbox-footer">
@@ -952,6 +953,6 @@
   </div>
 
   <div id="toastContainer" class="toast-container"></div>
-  <script type="module" src="/app.js?v=20261101_v9"></script>
+  <script type="module" src="/app.js?v=20261101_v10"></script>
 </body>
 </html>
