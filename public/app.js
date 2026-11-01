@@ -181,6 +181,12 @@ function renderPersonaDeck() {
         await apiPost('/api/presets/update', { activePresetId: btn.dataset.swapId });
         showToast(`Swapped persona to "${btn.textContent.trim()}"`);
         await fetchState();
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const initialMode = urlParams.get('mode') || (window.location.hash ? window.location.hash.replace('#', '') : null);
+  if (initialMode) {
+    switchMode(initialMode);
+  }
       };
     });
   }

@@ -2633,10 +2633,10 @@ button:active {
 /* ENHANCED VISIBILITY & LARGE THUMBNAIL RESPONSIVE GRID */
 .media-gallery-grid {
   display: grid !important;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)) !important;
-  gap: 18px !important;
-  padding: 8px 2px 32px !important;
-  min-height: 320px !important;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important;
+  gap: 20px !important;
+  padding: 10px 2px 60px !important;
+  width: 100% !important;
   overflow: visible !important;
 }
 
@@ -2645,6 +2645,11 @@ button:active {
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   border-radius: 12px !important;
   overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  height: 295px !important;
+  min-height: 295px !important;
+  max-height: 295px !important;
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45) !important;
   transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease !important;
 }
@@ -2658,9 +2663,10 @@ button:active {
 .media-visual-wrap {
   position: relative !important;
   width: 100% !important;
-  aspect-ratio: 16 / 9 !important;
-  height: auto !important;
+  height: 195px !important;
   min-height: 195px !important;
+  max-height: 195px !important;
+  flex: 0 0 195px !important;
   background: #020617 !important;
   overflow: hidden !important;
   cursor: pointer !important;
@@ -2669,21 +2675,22 @@ button:active {
 .media-visual {
   width: 100% !important;
   height: 100% !important;
+  min-height: 100% !important;
+  max-height: 100% !important;
   object-fit: cover !important;
   display: block !important;
   transition: transform 0.3s ease !important;
 }
 
 .media-visual-wrap:hover .media-visual {
-  transform: scale(1.04) !important;
+  transform: scale(1.05) !important;
 }
 
-/* Permanent bottom action strip on hover + visible button bar */
 .media-overlay-actions {
   position: absolute !important;
   inset: 0 !important;
-  background: rgba(9, 13, 22, 0.68) !important;
-  backdrop-filter: blur(3px) !important;
+  background: rgba(9, 13, 22, 0.72) !important;
+  backdrop-filter: blur(2px) !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -2720,19 +2727,21 @@ button:active {
   transform: scale(1.05) !important;
 }
 
-/* Card details metadata */
 .media-info {
-  padding: 12px 14px !important;
+  flex: 1 1 auto !important;
+  padding: 10px 14px 12px !important;
   display: flex !important;
   flex-direction: column !important;
-  gap: 6px !important;
+  justify-content: space-between !important;
+  background: #0d121c !important;
+  min-height: 95px !important;
 }
 
 .media-prompt {
   font-size: 12.5px !important;
   font-weight: 500 !important;
   color: #f1f5f9 !important;
-  line-height: 1.4 !important;
+  line-height: 1.35 !important;
   display: -webkit-box !important;
   -webkit-line-clamp: 2 !important;
   -webkit-box-orient: vertical !important;
@@ -2748,5 +2757,30 @@ button:active {
   color: var(--text-muted) !important;
   border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
   padding-top: 6px !important;
-  margin-top: 2px !important;
+  margin-top: 4px !important;
+}
+
+/* Video Studio Non-Collapsible Frames */
+.video-card {
+  min-height: 310px !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.video-viewport {
+  position: relative !important;
+  width: 100% !important;
+  height: 195px !important;
+  min-height: 195px !important;
+  max-height: 195px !important;
+  flex: 0 0 195px !important;
+  overflow: hidden !important;
+  background: #000 !important;
+}
+
+.cinematic-frame {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  display: block !important;
 }
