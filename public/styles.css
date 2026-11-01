@@ -1542,6 +1542,16 @@ button:active {
   align-items: center;
   justify-content: center;
   padding: 12px;
+  position: relative;
+  overflow: hidden;
+}
+
+.lightbox-body.is-zoomed {
+  overflow: auto !important;
+  display: block !important;
+  text-align: center;
+  cursor: zoom-out;
+  padding: 30px 20px;
 }
 
 .lightbox-media-img {
@@ -1551,6 +1561,29 @@ button:active {
   border-radius: 8px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
   display: block;
+  cursor: zoom-in;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+  margin: 0 auto;
+}
+
+.lightbox-media-img.zoomed {
+  max-width: none !important;
+  max-height: none !important;
+  width: 165% !important;
+  min-width: 1100px;
+  height: auto !important;
+  cursor: zoom-out !important;
+  display: inline-block;
+  margin: 0 auto;
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.95);
+}
+
+.lightbox-media-img.zoomed.portrait {
+  width: auto !important;
+  min-width: 0 !important;
+  height: 135vh !important;
+  max-height: 135vh !important;
 }
 
 .lightbox-footer {
@@ -2784,4 +2817,79 @@ button:active {
   height: 100% !important;
   object-fit: cover !important;
   display: block !important;
+}
+
+/* Modern Icon Buttons for Media Cards and Lightbox */
+.btn-overlay-icon {
+  background: rgba(15, 23, 42, 0.9) !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  color: #fff !important;
+  font-size: 15px !important;
+  width: 38px !important;
+  height: 38px !important;
+  min-width: 38px !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  text-decoration: none !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6) !important;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  backdrop-filter: blur(4px) !important;
+  padding: 0 !important;
+}
+
+.btn-overlay-icon:hover {
+  background: var(--accent-amber) !important;
+  border-color: #fbbf24 !important;
+  color: #0f172a !important;
+  transform: translateY(-2px) scale(1.12) !important;
+  box-shadow: 0 6px 16px rgba(245, 158, 11, 0.45) !important;
+}
+
+.btn-overlay-icon.btn-delete-image:hover {
+  background: #ef4444 !important;
+  border-color: #f87171 !important;
+  color: #fff !important;
+  box-shadow: 0 6px 16px rgba(239, 68, 68, 0.45) !important;
+}
+
+.btn-icon-round {
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  border-radius: 50% !important;
+  background: rgba(30, 41, 59, 0.85) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  color: #e2e8f0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 15px !important;
+  cursor: pointer !important;
+  text-decoration: none !important;
+  transition: all 0.18s ease !important;
+  user-select: none !important;
+  padding: 0 !important;
+}
+
+.btn-icon-round:hover {
+  background: rgba(245, 158, 11, 0.25) !important;
+  border-color: var(--accent-amber) !important;
+  color: #fbbf24 !important;
+  transform: scale(1.08) !important;
+}
+
+.btn-icon-round.active {
+  background: var(--accent-amber) !important;
+  border-color: #fbbf24 !important;
+  color: #0f172a !important;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.5) !important;
+}
+
+.btn-icon-round.btn-close-x:hover {
+  background: rgba(239, 68, 68, 0.35) !important;
+  border-color: #ef4444 !important;
+  color: #fff !important;
 }

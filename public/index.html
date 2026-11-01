@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/styles.css?v=20261101_v6" />
+  <link rel="stylesheet" href="/styles.css?v=20261101_v8" />
 </head>
 <body>
   <!-- LOGIN OVERLAY (Triggers Auto-Run Colab on Sign-In) -->
@@ -175,9 +175,10 @@
       <div class="lightbox-header">
         <div id="lightboxPrompt" class="lightbox-prompt-text">Prompt details...</div>
         <div class="lightbox-header-actions">
-          <button id="btnLightboxCopyPrompt" type="button" class="btn-compact btn-secondary">📋 Copy Prompt</button>
-          <a id="btnLightboxDownload" href="#" target="_blank" download="render.jpg" class="btn-compact btn-primary">⬇ Download HD</a>
-          <button id="btnCloseLightbox" type="button" class="btn-compact btn-secondary" onclick="closeLightbox()" style="font-size:16px;">✕</button>
+          <button id="btnLightboxZoomToggle" type="button" class="btn-compact btn-icon-round" title="Zoom In (100%) / Zoom Out (Click photo to toggle)">🔍</button>
+          <button id="btnLightboxCopyPrompt" type="button" class="btn-compact btn-icon-round" title="Copy Generation Prompt">📋</button>
+          <a id="btnLightboxDownload" href="#" target="_blank" download="render.jpg" class="btn-compact btn-icon-round" title="Download HD Master Image">💾</a>
+          <button id="btnCloseLightbox" type="button" class="btn-compact btn-icon-round btn-close-x" onclick="closeLightbox()" title="Close Lightbox (Esc)">✕</button>
         </div>
       </div>
       <div class="lightbox-body" style="position:relative; display:flex; align-items:center; justify-content:center;">
@@ -937,6 +938,6 @@
   </div>
 
   <div id="toastContainer" class="toast-container"></div>
-  <script type="module" src="/app.js?v=20261101_v6"></script>
+  <script type="module" src="/app.js?v=20261101_v8"></script>
 </body>
 </html>

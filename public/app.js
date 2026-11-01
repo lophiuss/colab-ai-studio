@@ -471,11 +471,11 @@ function renderImageStudio() {
         <div class="media-visual-wrap">
           <img class="media-visual" src="${finalUrl}" alt="${escapeHtml(img.prompt)}" loading="lazy" onerror="this.onerror=null; this.classList.add('media-img-error');" />
           <div class="media-overlay-actions">
-            <button class="btn-overlay btn-view-image" data-url="${finalUrl}" data-prompt="${escapeHtml(img.prompt)}" data-meta="${escapeHtml(img.aspectRatio || '16:9')} · Seed ${img.seed} · ${escapeHtml(shortModel)}" data-filename="${escapeHtml(properName)}">🔍 View HD</button>
-            <button class="btn-overlay btn-trace-image" data-img-id="${img.id}" title="Inspect full prompt, seed, model, CFG and trace">⚙️ Trace</button>
-            <a class="btn-overlay" href="${finalUrl}" target="_blank" download="${escapeHtml(properName)}" title="Download with proper descriptive filename">💾 Download</a>
-            <button class="btn-overlay btn-delete-image" data-img-id="${img.id}" title="Delete Image" style="color:#f87171;">✕</button>
-            <button class="btn-overlay btn-copy-image-prompt" data-prompt="${escapeHtml(img.prompt)}" title="Copy full prompt">📋 Prompt</button>
+            <button class="btn-overlay-icon btn-view-image" data-url="${finalUrl}" data-prompt="${escapeHtml(img.prompt)}" data-meta="${escapeHtml(img.aspectRatio || '16:9')} · Seed ${img.seed} · ${escapeHtml(shortModel)}" data-filename="${escapeHtml(properName)}" title="🔍 Enlarge / Zoom HD (Lightbox)">🔍</button>
+            <button class="btn-overlay-icon btn-trace-image" data-img-id="${img.id}" title="⚙️ Generation Trace &amp; Parameters">⚙️</button>
+            <a class="btn-overlay-icon" href="${finalUrl}" target="_blank" download="${escapeHtml(properName)}" title="💾 Download HD Master Image" onclick="event.stopPropagation()">💾</a>
+            <button class="btn-overlay-icon btn-copy-image-prompt" data-prompt="${escapeHtml(img.prompt)}" title="📋 Copy Prompt">📋</button>
+            <button class="btn-overlay-icon btn-delete-image" data-img-id="${img.id}" title="🗑️ Delete Image" style="color:#ef4444;">🗑️</button>
           </div>
         </div>
         <div class="media-info">
@@ -507,14 +507,16 @@ function renderImageStudio() {
   });
 
   grid.querySelectorAll('.btn-trace-image').forEach(btn => {
-    btn.onclick = () => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
       const img = appState.images.find(i => i.id === btn.dataset.imgId);
       if (img) openTraceModal(img);
     };
   });
 
   grid.querySelectorAll('.btn-copy-image-prompt').forEach(btn => {
-    btn.onclick = () => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
       navigator.clipboard.writeText(btn.dataset.prompt);
       showToast('Prompt copied to clipboard!');
     };
@@ -594,9 +596,9 @@ function renderVideoStudio() {
               <div id="progress-${vid.id}" class="video-progress-fill"></div>
             </div>
             <span id="timecode-${vid.id}" class="video-timecode">00:00 / 00:0${vid.durationSec || 5}</span>
-            <a class="btn-hud-action" href="${frameUrl}" target="_blank" download="${escapeHtml(properFilename)}" title="Download Master Frame">💾 Frame</a>
+            <a class="btn-hud-action" href="${frameUrl}" target="_blank" download="${escapeHtml(properFilename)}" title="Download Master Frame" onclick="event.stopPropagation()">💾</a>
             <button class="btn-hud-action btn-fullscreen-video" data-url="${frameUrl}" data-prompt="${escapeHtml(vid.prompt)}" data-meta="${escapeHtml(vid.cameraMotion)} · ${vid.durationSec}s @ ${vid.fps || 24}fps · ${styleLabel}" title="Cinema View">⛶</button>
-            <button class="btn-hud-action btn-delete-video" data-vid-id="${vid.id}" style="color:#f87171;" title="Delete Video">✕</button>
+            <button class="btn-hud-action btn-delete-video" data-vid-id="${vid.id}" style="color:#f87171;" title="Delete Video">🗑️</button>
           </div>
         </div>
         <div class="media-info" style="padding:10px 12px;">
@@ -673,25 +675,127 @@ function renderVideoStudio() {
   });
 }
 
+let currentLightboxIndex = -1;
+let isLightboxZoomed = false;
+
+function getLightboxImageList() {
+  if (!appState || !Array.isArray(appState.images)) return [];
+  return appState.images.filter(img => img && (img.imageUrl || img.fileName || img.id));
+}
+
+function updateLightboxView(index) {
+  const list = getLightboxImageList();
+  if (!list.length) return;
+  if (index < 0) index = 0;
+  if (index >= list.length) index = list.length - 1;
+  currentLightboxIndex = index;
+  const imgData = list[index];
+
+  const modal = document.getElementById('mediaLightboxModal');
+  const imgEl = document.getElementById('lightboxImage');
+  const promptEl = document.getElementById('lightboxPrompt');
+  const metaEl = document.getElementById('lightboxMeta');
+  const downloadLink = document.getElementById('btnLightboxDownload');
+
+  const finalUrl = imgData.imageUrl || ('/media/' + (imgData.fileName || (imgData.id + '.jpg')));
+  const properName = getDescriptiveFilename(imgData);
+  const shortModel = (imgData.model || 'Diffusers').split('/').pop();
+  const meta = `${imgData.aspectRatio || '16:9'} · Seed ${imgData.seed} · ${shortModel} · (${index + 1}/${list.length})`;
+
+  if (imgEl) {
+    imgEl.src = finalUrl;
+    imgEl.alt = imgData.prompt || 'Generated Visual';
+  }
+  if (promptEl) promptEl.textContent = imgData.prompt || 'Generated Visual';
+  if (metaEl) metaEl.textContent = meta;
+  if (downloadLink) {
+    downloadLink.href = finalUrl;
+    downloadLink.download = properName || 'render.jpg';
+  }
+
+  resetLightboxZoom();
+
+  if (modal) modal.classList.remove('hidden');
+}
+
+function toggleLightboxZoom(forceState) {
+  const modal = document.getElementById('mediaLightboxModal');
+  if (!modal || modal.classList.contains('hidden')) return;
+
+  const bodyEl = modal.querySelector('.lightbox-body');
+  const imgEl = document.getElementById('lightboxImage');
+  const zoomBtn = document.getElementById('btnLightboxZoomToggle');
+
+  if (typeof forceState === 'boolean') {
+    isLightboxZoomed = forceState;
+  } else {
+    isLightboxZoomed = !isLightboxZoomed;
+  }
+
+  if (isLightboxZoomed) {
+    if (imgEl) {
+      if (imgEl.naturalHeight && imgEl.naturalWidth && imgEl.naturalHeight > imgEl.naturalWidth) {
+        imgEl.classList.add('portrait');
+      } else {
+        imgEl.classList.remove('portrait');
+      }
+      imgEl.classList.add('zoomed');
+      imgEl.title = 'Click to Zoom Out (Fit Screen)';
+    }
+    if (bodyEl) bodyEl.classList.add('is-zoomed');
+    if (zoomBtn) {
+      zoomBtn.classList.add('active');
+      zoomBtn.title = 'Zoom Out (Fit Screen)';
+      zoomBtn.innerHTML = '🔎';
+    }
+  } else {
+    if (imgEl) {
+      imgEl.classList.remove('zoomed');
+      imgEl.classList.remove('portrait');
+      imgEl.title = 'Click to Zoom In (Inspect full details)';
+    }
+    if (bodyEl) bodyEl.classList.remove('is-zoomed');
+    if (zoomBtn) {
+      zoomBtn.classList.remove('active');
+      zoomBtn.title = 'Zoom In (Inspect Details)';
+      zoomBtn.innerHTML = '🔍';
+    }
+  }
+}
+
+function resetLightboxZoom() {
+  toggleLightboxZoom(false);
+}
+
 function openLightbox(url, prompt, meta, downloadFilename = 'render.jpg') {
   const list = getLightboxImageList();
-  const foundIdx = list.findIndex(i => i.imageUrl === url || `/media/${i.id}.jpg` === url || `/media/${i.id}.svg` === url);
+  const foundIdx = list.findIndex(i => {
+    const u = i.imageUrl || ('/media/' + (i.fileName || (i.id + '.jpg')));
+    return u === url || i.imageUrl === url || `/media/${i.id}.jpg` === url || `/media/${i.id}.svg` === url;
+  });
+
   if (foundIdx !== -1) {
     updateLightboxView(foundIdx);
   } else {
     currentLightboxIndex = -1;
     const modal = document.getElementById('mediaLightboxModal');
-    const img = document.getElementById('lightboxImage');
+    const imgEl = document.getElementById('lightboxImage');
     const promptEl = document.getElementById('lightboxPrompt');
     const metaEl = document.getElementById('lightboxMeta');
     const downloadLink = document.getElementById('btnLightboxDownload');
 
-    img.src = url;
-    promptEl.textContent = prompt || 'Generated Visual';
-    metaEl.textContent = meta || 'FLUX 1024x576';
-    downloadLink.href = url;
-    downloadLink.download = downloadFilename;
-    modal.classList.remove('hidden');
+    if (imgEl) {
+      imgEl.src = url;
+      imgEl.alt = prompt || 'Generated Visual';
+    }
+    if (promptEl) promptEl.textContent = prompt || 'Generated Visual';
+    if (metaEl) metaEl.textContent = meta || 'FLUX 1024x576';
+    if (downloadLink) {
+      downloadLink.href = url;
+      downloadLink.download = downloadFilename;
+    }
+    resetLightboxZoom();
+    if (modal) modal.classList.remove('hidden');
   }
 }
 
@@ -709,12 +813,21 @@ function nextLightboxImage() {
   updateLightboxView(newIdx);
 }
 
-window.closeLightbox = closeLightbox;
-window.closeTraceModal = closeTraceModal;
 function closeLightbox() {
   const modal = document.getElementById('mediaLightboxModal');
   if (modal) modal.classList.add('hidden');
+  resetLightboxZoom();
 }
+
+window.openLightbox = openLightbox;
+window.closeLightbox = closeLightbox;
+window.prevLightboxImage = prevLightboxImage;
+window.nextLightboxImage = nextLightboxImage;
+window.toggleLightboxZoom = toggleLightboxZoom;
+window.resetLightboxZoom = resetLightboxZoom;
+window.getLightboxImageList = getLightboxImageList;
+window.updateLightboxView = updateLightboxView;
+window.closeTraceModal = closeTraceModal;
 
 function renderAgentStudio() {
   if (!appState) return;
@@ -1835,12 +1948,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
   }
 
-    const btnPrevLb = document.getElementById('btnLightboxPrev');
+  const btnPrevLb = document.getElementById('btnLightboxPrev');
   const btnNextLb = document.getElementById('btnLightboxNext');
   if (btnPrevLb) btnPrevLb.addEventListener('click', (e) => { e.stopPropagation(); prevLightboxImage(); });
   if (btnNextLb) btnNextLb.addEventListener('click', (e) => { e.stopPropagation(); nextLightboxImage(); });
 
-  // Arrow key keyboard navigation
+  const btnZoomLb = document.getElementById('btnLightboxZoomToggle');
+  if (btnZoomLb) btnZoomLb.addEventListener('click', (e) => { e.stopPropagation(); toggleLightboxZoom(); });
+
+  const lbImageEl = document.getElementById('lightboxImage');
+  if (lbImageEl) {
+    lbImageEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleLightboxZoom();
+    });
+  }
+
+  // Arrow keys & keyboard shortcuts: Left/Right photo surfing, Z for Zoom, Escape to close
   window.addEventListener('keydown', (e) => {
     const lbModal = document.getElementById('mediaLightboxModal');
     if (!lbModal || lbModal.classList.contains('hidden')) return;
@@ -1851,6 +1975,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else if (e.key === 'ArrowRight') {
       e.preventDefault();
       nextLightboxImage();
+    } else if (e.key === 'z' || e.key === 'Z') {
+      e.preventDefault();
+      toggleLightboxZoom();
     } else if (e.key === 'Escape') {
       closeLightbox();
       closeTraceModal();
