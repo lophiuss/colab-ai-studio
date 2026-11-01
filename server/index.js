@@ -359,6 +359,106 @@ const DEFAULT_STATE = {
   }
 };
 
+function syncMediaFilesFromDisk(targetState) {
+  const mediaDir = path.join(PUBLIC_DIR, 'media');
+  if (!fs.existsSync(mediaDir)) return targetState;
+
+  const files = fs.readdirSync(mediaDir);
+  const jpgFiles = files.filter(f => f.toLowerCase().endsWith('.jpg'));
+
+  const existingMap = new Map();
+  if (Array.isArray(targetState.images)) {
+    targetState.images.forEach(img => {
+      if (img.imageUrl) existingMap.set(img.imageUrl, img);
+      if (img.fileName) existingMap.set('/media/' + img.fileName, img);
+      if (img.id) existingMap.set('/media/' + img.id + '.jpg', img);
+    });
+  } else {
+    targetState.images = [];
+  }
+
+  const validImages = [];
+
+  for (const f of jpgFiles) {
+    const fullPath = path.join(mediaDir, f);
+    try {
+      const stat = fs.statSync(fullPath);
+      // Skip empty or error banner images
+      if (stat.size < 5000 || [94175, 94177, 83327, 80743].includes(stat.size)) continue;
+      // Skip video frames (handled in videos)
+      if (f.includes('Seedance') || f.startsWith('vid-')) continue;
+
+      const fileUrl = '/media/' + f;
+      const jsonSidecar = path.join(mediaDir, f.replace(/\.jpg$/i, '.json'));
+      let sidecarData = null;
+      if (fs.existsSync(jsonSidecar)) {
+        try {
+          sidecarData = JSON.parse(fs.readFileSync(jsonSidecar, 'utf-8'));
+        } catch (e) {}
+      }
+
+      let existing = existingMap.get(fileUrl);
+      if (existing) {
+        existing.imageUrl = fileUrl;
+        existing.fileName = f;
+        if (sidecarData) {
+          if (!existing.prompt && sidecarData.prompt) existing.prompt = sidecarData.prompt;
+          if (!existing.enhancedPrompt && sidecarData.enhancedPrompt) existing.enhancedPrompt = sidecarData.enhancedPrompt;
+          if (!existing.negativePrompt && sidecarData.negativePrompt) existing.negativePrompt = sidecarData.negativePrompt;
+          if (!existing.model && sidecarData.model) existing.model = sidecarData.model;
+          if (sidecarData.settings) {
+            existing.seed = sidecarData.settings.seed || existing.seed;
+            existing.steps = sidecarData.settings.steps || existing.steps;
+            existing.cfgScale = sidecarData.settings.cfgScale || existing.cfgScale;
+            existing.aspectRatio = sidecarData.settings.aspectRatio || existing.aspectRatio;
+          }
+        }
+        validImages.push(existing);
+      } else {
+        const seedMatch = f.match(/_s(\d+)_/);
+        const cfgMatch = f.match(/_cfg([\d\.]+)_/);
+        const stMatch = f.match(/_st(\d+)\.jpg$/i);
+        const id = sidecarData?.id || ('img-' + Math.floor(stat.mtimeMs) + '-' + Math.random().toString(36).slice(2, 6));
+
+        validImages.push({
+          id,
+          fileName: f,
+          imageUrl: fileUrl,
+          metaUrl: fs.existsSync(jsonSidecar) ? `/media/${f.replace(/\.jpg$/i, '.json')}` : undefined,
+          prompt: sidecarData?.prompt || f.replace(/^\d+_\d+_/, '').replace(/_s\d+.*$/, '').replace(/_/g, ' '),
+          enhancedPrompt: sidecarData?.enhancedPrompt,
+          negativePrompt: sidecarData?.negativePrompt,
+          model: sidecarData?.model || (f.includes('DreamShaper') ? 'Lykon/dreamshaper-xl-v2-turbo' : 'black-forest-labs/FLUX.1-dev'),
+          aspectRatio: sidecarData?.settings?.aspectRatio || '16:9',
+          width: sidecarData?.settings?.width || 1024,
+          height: sidecarData?.settings?.height || 576,
+          steps: sidecarData?.settings?.steps || (stMatch ? Number(stMatch[1]) : 8),
+          cfgScale: sidecarData?.settings?.cfgScale || (cfgMatch ? Number(cfgMatch[1]) : 2),
+          seed: sidecarData?.settings?.seed || (seedMatch ? Number(seedMatch[1]) : 50000000),
+          createdAt: sidecarData?.createdAt || stat.birthtime.toISOString(),
+          subjectTag: (sidecarData?.prompt || f).split(',')[0].slice(0, 38)
+        });
+      }
+    } catch (e) {}
+  }
+
+  // Sort newest first
+  validImages.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  targetState.images = validImages;
+
+  // Auto-sync video frames
+  if (Array.isArray(targetState.videos)) {
+    targetState.videos.forEach(vid => {
+      const localFile = path.join(mediaDir, `${vid.id}.jpg`);
+      if (fs.existsSync(localFile)) {
+        vid.frameUrl = `/media/${vid.id}.jpg`;
+      }
+    });
+  }
+
+  return targetState;
+}
+
 function loadState() {
   try {
     if (fs.existsSync(STATE_FILE)) {
@@ -417,17 +517,8 @@ function loadState() {
         merged.presets.activePresetId = merged.presets.defaultPresetId;
       }
 
-      // Keep only successfully rendered real images that exist on disk
-      if (Array.isArray(merged.images)) {
-        merged.images = merged.images.filter(img => {
-          if (!img.prompt || img.prompt.trim() === 'jnjn') return false;
-          const localJpg = path.join(PUBLIC_DIR, 'media', `${img.id}.jpg`);
-          return fs.existsSync(localJpg) && fs.statSync(localJpg).size > 5000;
-        });
-        merged.images.forEach(img => {
-          img.imageUrl = `/media/${img.id}.jpg`;
-        });
-      }
+      // Reconcile and auto-index all created real images and video frames from disk
+      syncMediaFilesFromDisk(merged);
 
       // Auto-migrate legacy videos to local cached media or high-availability endpoints
       if (Array.isArray(merged.videos)) {
@@ -478,6 +569,7 @@ function archiveActiveChat() {
 }
 
 function saveState() {
+  syncMediaFilesFromDisk(state);
   if (Array.isArray(state.images)) state.images = state.images.filter(img => !img.imageUrl || !img.imageUrl.includes('pollinations.ai'));
   try {
     fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), 'utf-8');

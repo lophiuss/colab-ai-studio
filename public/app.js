@@ -435,22 +435,35 @@ function closeTraceModal() {
 
 function renderImageStudio() {
   if (!appState) return;
-  document.getElementById('imageActiveModelPill').textContent = appState.models.activeImageModel;
+  const activeModelEl = document.getElementById('imageActiveModelPill');
+  if (activeModelEl && appState.models) activeModelEl.textContent = appState.models.activeImageModel;
+  
   const grid = document.getElementById('imageGalleryGrid');
-  const signature = appState.images.map(i => i.id + ':' + (i.imageUrl || '')).join('|');
+  if (!grid) return;
+  const signature = (appState.images || []).map(i => i.id + ':' + (i.imageUrl || '')).join('|');
   if (grid.dataset.lastSig === signature) return;
   grid.dataset.lastSig = signature;
 
+  if (!appState.images || appState.images.length === 0) {
+    grid.innerHTML = `
+      <div style="grid-column: 1 / -1; padding: 48px 24px; text-align: center; color: var(--text-muted); background: var(--bg-panel); border: 1px dashed var(--border-hairline); border-radius: 12px;">
+        <div style="font-size: 32px; margin-bottom: 8px;">🎨</div>
+        <div style="font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">No images generated yet</div>
+        <div style="font-size: 13px;">Enter a visual prompt above and click "Render Image" to generate your first creation.</div>
+      </div>
+    `;
+    return;
+  }
+
   grid.innerHTML = appState.images.map(img => {
-    const fallbackUrl = `/media/${img.id}.svg`;
-    const finalUrl = img.imageUrl || fallbackUrl;
+    const finalUrl = img.imageUrl || ('/media/' + (img.fileName || (img.id + '.jpg')));
     const properName = getDescriptiveFilename(img);
     const shortModel = (img.model || 'Diffusers').split('/').pop();
 
     return `
       <div class="media-card" data-img-id="${img.id}">
         <div class="media-visual-wrap">
-          <img class="media-visual" src="${finalUrl}" alt="${escapeHtml(img.prompt)}" loading="lazy" onerror="this.onerror=null; this.src='https://pollinations.ai/p/${encodeURIComponent(img.prompt)}?width=1024&height=576&seed=${img.seed}';" />
+          <img class="media-visual" src="${finalUrl}" alt="${escapeHtml(img.prompt)}" loading="lazy" onerror="this.onerror=null; this.classList.add('media-img-error');" />
           <div class="media-overlay-actions">
             <button class="btn-overlay btn-view-image" data-url="${finalUrl}" data-prompt="${escapeHtml(img.prompt)}" data-meta="${escapeHtml(img.aspectRatio || '16:9')} · Seed ${img.seed} · ${escapeHtml(shortModel)}" data-filename="${escapeHtml(properName)}">🔍 View HD</button>
             <button class="btn-overlay btn-trace-image" data-img-id="${img.id}" title="Inspect full prompt, seed, model, CFG and trace">⚙️ Trace</button>
@@ -1020,7 +1033,23 @@ function switchMode(mode) {
   // Update workspace panels
   document.querySelectorAll('.workspace-panel').forEach(p => p.classList.remove('active'));
   const panel = document.getElementById(`tab-${mode}`);
-  if (panel) panel.classList.add('active');
+  if (panel) {
+    panel.classList.add('active');
+    // Invalidate signature and force immediate re-render of activated mode
+    if (mode === 'image') {
+      const grid = document.getElementById('imageGalleryGrid');
+      if (grid) grid.dataset.lastSig = '';
+      renderImageStudio();
+    } else if (mode === 'video') {
+      const grid = document.getElementById('videoGalleryGrid');
+      if (grid) grid.dataset.lastSig = '';
+      renderVideoStudio();
+    } else if (mode === 'novel') {
+      renderNovelStudio();
+    } else if (mode === 'chat') {
+      renderChatStudio();
+    }
+  }
 }
 
 function renderAll() {

@@ -1232,6 +1232,11 @@ button:active {
   transition: transform 0.35s ease;
 }
 
+.media-visual.media-img-error {
+  opacity: 0.35;
+  filter: grayscale(1);
+}
+
 .media-visual-wrap:hover .media-visual {
   transform: scale(1.05);
 }
