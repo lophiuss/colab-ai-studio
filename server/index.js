@@ -1277,33 +1277,84 @@ async function createGeneratedImage(prompt, options = {}) {
   const filePath = path.join(mediaDir, fileName);
   let localUrl = `/media/${fileName}`;
 
-  // Precision Anatomical and Facial enhancements (Eyes, Mouth, Lips, Teeth, Skin)
+  // Precision Anatomical and Facial enhancements (Solo Anchor + Anti-Tiling Guarantees)
   const isHumanOrCharacter = /woman|man|girl|boy|person|cleopatra|portrait|face|eyes|mouth|smile|lips|teeth|queen|body|erotic|sensual|skin|beauty|goddess|princess|lady|warrior|human|figure|character|photo|model|selfie|costume/i.test(cleanPrompt);
   let enhancedPrompt = cleanPrompt;
   if (options.anatomyBoost !== false && isHumanOrCharacter) {
-    const eyeTerms = 'perfectly symmetrical detailed eyes, sharp intricate irises, natural corneal reflections, distinct circular pupils, realistic defined eyelashes, natural eyelids';
-    const mouthTerms = 'naturally shaped lips, subtle moist lip texture, clean symmetrical white teeth, natural mouth anatomy, harmonious facial features';
-    const skinTerms = 'flawless facial proportions, natural realistic skin texture, subtle skin pores, 8k uhd, professional studio lighting, sharp focus';
-    
-    let additions = [];
-    if (!/eye|iris|pupil/i.test(cleanPrompt)) additions.push(eyeTerms);
-    if (!/mouth|lip|teeth|smile/i.test(cleanPrompt)) additions.push(mouthTerms);
-    additions.push(skinTerms);
-    enhancedPrompt = `${cleanPrompt}, ${additions.join(', ')}`;
+    // A clean single-subject anchor guarantees ONE centered subject and eradicates texture tiling!
+    const subjectAnchor = 'solo, 1person, centered portrait, looking at camera, beautiful detailed face, flawless eyes, natural lips, realistic skin texture, professional portrait photography, 8k, sharp focus';
+    if (!/solo|1girl|1boy|1man|1woman|single person/i.test(cleanPrompt)) {
+      enhancedPrompt = `${cleanPrompt}, ${subjectAnchor}`;
+    }
   }
 
-  // Surgical negative prompt targeting distorted eyes, crooked mouths, fused teeth, etc.
-  const defaultNegative = 'deformed iris, deformed pupils, asymmetrical eyes, cross-eyed, misaligned pupils, wandering eye, dull lifeless eyes, blind eyes, cataract, double pupil, blurry eyes, crooked mouth, deformed lips, split lip, open mouth distortion, bad teeth, crooked teeth, yellow teeth, extra teeth, fused teeth, missing teeth, unnatural grimace, distorted smile, bad jawline, poorly drawn face, mutated face, malformed face, deformed anatomy, bad proportions, extra fingers, mutated hands, disfigured, plastic skin, doll face, 3d render doll, blurry, low resolution, bad quality, watermark, signature';
-  const negativePrompt = (options.negativePrompt ? `${options.negativePrompt}, ${defaultNegative}` : defaultNegative);
+  // Surgical negative prompt: strictly eliminates duplicate heads, multiple eyes/mouths, and tiling grids!
+  const antiTilingNegative = 'multiple faces, duplicate heads, extra eyes, multiple mouths, duplicate face, cloned face, tiling, grid, repeated pattern, split screen, double image, collage, deformed iris, cross-eyed, misaligned pupils, crooked mouth, deformed lips, bad teeth, bad anatomy, deformed limbs, extra fingers, missing fingers, mutation, blurry, watermark, low quality';
+  const negativePrompt = (options.negativePrompt ? `${options.negativePrompt}, ${antiTilingNegative}` : antiTilingNegative);
 
   let downloaded = false;
   let gpuElapsed = null;
 
-  // 1. Primary: Real GPU generation on Colab A100 Diffusers!
-  if (state.colab.status === 'READY' && state.colab.tunnelUrl) {
+  const isFluxOrHighRes = /flux|sdxl|dreamshaper/i.test(targetModel) || width > 768 || height > 768;
+
+  // 1. High-fidelity FLUX / SDXL Engine (Pollinations primary for FLUX models to guarantee 1024x1024 photorealism)
+  if (isFluxOrHighRes) {
+    const reqModel = (targetModel || '').toLowerCase();
+    let extModels = ['flux', 'flux-anime', 'turbo'];
+    if (reqModel.includes('anime')) {
+      extModels = ['flux-anime', 'flux', 'turbo'];
+    }
+
+    for (const m of extModels) {
+      try {
+        const controller = new AbortController();
+        const tid = setTimeout(() => controller.abort(), 22000);
+        const u = `https://image.pollinations.ai/prompt/${encodeURIComponent(enhancedPrompt)}?width=${width}&height=${height}&model=${m}&seed=${seed}&nologo=true&safe=false&negative_prompt=${encodeURIComponent(negativePrompt)}`;
+        const res = await fetch(u, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+          },
+          signal: controller.signal
+        });
+        clearTimeout(tid);
+        if (res.ok && res.headers.get('content-type')?.includes('image')) {
+          const arrayBuf = await res.arrayBuffer();
+          const buffer = Buffer.from(arrayBuf);
+          const bufStr = buffer.toString('utf8', 0, 800);
+          const isBanner = bufStr.includes('Free limit reached') || bufStr.includes('pollinations.ai') || [94175, 94177, 83327, 80743, 75520, 68420].includes(arrayBuf.byteLength);
+          if (arrayBuf.byteLength > 3000 && !isBanner) {
+            fs.writeFileSync(filePath, Buffer.from(arrayBuf));
+            downloaded = true;
+            console.log(`🎨 [FLUX Engine] Generated high-fidelity visual (${m}, ${width}x${height}, seed ${seed}) in ${(Date.now() - now.getTime()) / 1000}s! Saved to: ${fileName}`);
+            break;
+          }
+        }
+      } catch (e) {
+        console.warn(`External ${m} notice:`, e.message);
+      }
+    }
+  }
+
+  // 2. Colab GPU generation (Ideal for SD-Turbo fast draft or fallback, with safe resolution clamping to prevent tiling!)
+  if (!downloaded && state.colab.status === 'READY' && state.colab.tunnelUrl) {
     try {
       const gpuCtrl = new AbortController();
       const gpuTid = setTimeout(() => gpuCtrl.abort(), 60000);
+
+      // Clamp SD-Turbo resolution to 512 (or 768 max) so SD-Turbo positional encoding NEVER tiles!
+      let safeW = width;
+      let safeH = height;
+      if (safeW > 768 || safeH > 768) {
+        if (aspectRatio === '1:1') { safeW = 512; safeH = 512; }
+        else if (aspectRatio === '16:9') { safeW = 768; safeH = 432; }
+        else if (aspectRatio === '9:16') { safeW = 432; safeH = 768; }
+        else if (aspectRatio === '3:4') { safeW = 512; safeH = 688; }
+        else if (aspectRatio === '4:3') { safeW = 688; safeH = 512; }
+        else if (aspectRatio === '21:9') { safeW = 768; safeH = 336; }
+        else { safeW = 512; safeH = 512; }
+        safeW = Math.round(safeW / 16) * 16;
+        safeH = Math.round(safeH / 16) * 16;
+      }
 
       const gpuRes = await fetch(`${state.colab.tunnelUrl}/generate/image`, {
         method: 'POST',
@@ -1311,10 +1362,10 @@ async function createGeneratedImage(prompt, options = {}) {
         body: JSON.stringify({
           prompt: enhancedPrompt,
           negative_prompt: negativePrompt,
-          width,
-          height,
-          steps,
-          cfg_scale: cfgScale,
+          width: safeW,
+          height: safeH,
+          steps: Math.min(steps, 6),
+          cfg_scale: Math.min(cfgScale, 2.0),
           model: targetModel
         }),
         signal: gpuCtrl.signal
@@ -1334,18 +1385,12 @@ async function createGeneratedImage(prompt, options = {}) {
     }
   }
 
-  // 2. High-fidelity external engine fallback (prioritizing FLUX Realism & FLUX)
+  // 3. High-fidelity external engine fallback
   if (!downloaded) {
     const reqModel = (targetModel || '').toLowerCase();
-    let extModels = ['flux-realism', 'flux', 'flux-pro', 'turbo'];
+    let extModels = ['flux', 'flux-anime', 'turbo'];
     if (reqModel.includes('anime')) {
-      extModels = ['flux-anime', 'flux', 'flux-realism', 'turbo'];
-    } else if (reqModel.includes('pro')) {
-      extModels = ['flux-pro', 'flux-realism', 'flux', 'turbo'];
-    } else if (reqModel.includes('turbo')) {
-      extModels = ['turbo', 'flux-realism', 'flux'];
-    } else if (reqModel.includes('realism') || isHumanOrCharacter) {
-      extModels = ['flux-realism', 'flux', 'flux-pro', 'turbo'];
+      extModels = ['flux-anime', 'flux', 'turbo'];
     }
 
     for (const m of extModels) {

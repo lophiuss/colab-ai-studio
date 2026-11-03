@@ -1848,29 +1848,162 @@ document.addEventListener('DOMContentLoaded', async () => {
   const chipStudio = document.getElementById('chipAddStudioPortrait');
   const chipAntiDeform = document.getElementById('chipAddAntiDeform');
 
+  // Auto-stretch and dynamic auto-expand prompt textarea with content
+  if (promptInput) {
+    const autoExpandPrompt = () => {
+      promptInput.style.height = 'auto';
+      promptInput.style.height = Math.max(86, promptInput.scrollHeight + 2) + 'px';
+    };
+    promptInput.addEventListener('input', autoExpandPrompt);
+    window.addEventListener('resize', autoExpandPrompt);
+    setTimeout(autoExpandPrompt, 200);
+  }
+
+  // Recommended Presets Configuration (一键推荐画风与最优参数)
+  const IMAGE_PRESETS = {
+    'photoreal-portrait': {
+      name: '📸 8K 写实肖像 (1:1)',
+      model: 'flux-realism',
+      aspectRatio: '1:1',
+      resolution: '1024',
+      width: 1024,
+      height: 1024,
+      steps: 12,
+      cfg: 3.0,
+      negative: 'multiple faces, duplicate heads, extra eyes, multiple mouths, duplicate face, cloned face, tiling, grid, repeated pattern, split screen, double image, collage, deformed iris, cross-eyed, deformed mouth, crooked teeth, bad anatomy, deformed limbs, mutation, blurry, watermark',
+      samplePrompt: 'A photorealistic portrait of an elegant woman, intricate traditional jewelry, striking expressive eyes, natural lip texture, professional 85mm portrait photography, soft cinematic rim lighting, 8k uhd'
+    },
+    'cinematic-epic': {
+      name: '🎬 电影大片 (16:9)',
+      model: 'black-forest-labs/FLUX.1-dev',
+      aspectRatio: '16:9',
+      resolution: '1024',
+      width: 1344,
+      height: 768,
+      steps: 14,
+      cfg: 3.5,
+      negative: 'multiple frames, collage, split screen, low resolution, bad composition, watermark, text, blurry, deformed',
+      samplePrompt: 'Cinematic film still, 35mm anamorphic shot of a lone wanderer standing on the edge of an ancient cliff, dramatic volumetric dawn light, mist rising from the valley, atmospheric depth, 8k uhd'
+    },
+    'anime-sakuga': {
+      name: '🌸 二次元壁纸 (3:4)',
+      model: 'flux-anime',
+      aspectRatio: '3:4',
+      resolution: '1024',
+      width: 768,
+      height: 1024,
+      steps: 12,
+      cfg: 3.5,
+      negative: 'bad anatomy, deformed face, extra limbs, 3d render, photo, photorealistic, low quality, multiple heads, cloned face',
+      samplePrompt: 'Masterpiece anime artwork, vibrant colors, clean lines, Makoto Shinkai aesthetic, gorgeous golden hour lighting, expressive detailed eyes, wind-blown hair, breathtaking sky'
+    },
+    'cyberpunk-wide': {
+      name: '🌌 赛博科幻全景 (21:9)',
+      model: 'black-forest-labs/FLUX.1-dev',
+      aspectRatio: '21:9',
+      resolution: '1024',
+      width: 1536,
+      height: 640,
+      steps: 14,
+      cfg: 3.5,
+      negative: 'blurry, washed out, low contrast, multiple panels, extra limbs, low resolution',
+      samplePrompt: 'Cyberpunk concept art, ultra-wide panoramic vista of a towering neon-drenched metropolis, flying spinner vehicles, rain reflections on wet asphalt, volumetric cyan and magenta glow, Unreal Engine 5 render'
+    },
+    'mobile-wallpaper': {
+      name: '📱 手机高清全屏 (9:16)',
+      model: 'flux-realism',
+      aspectRatio: '9:16',
+      resolution: '1024',
+      width: 768,
+      height: 1344,
+      steps: 12,
+      cfg: 3.0,
+      negative: 'cropped, blurry, tiling, multiple people, duplicate faces, deformed features, watermark',
+      samplePrompt: 'Vertical masterpiece wallpaper, ethereal cosmic goddess crowned with stardust, luminous aura, ornate gold details, rich midnight blue and violet palette, razor sharp 8k detail'
+    },
+    'fast-draft': {
+      name: '⚡ 极速草稿 0.3s (512px)',
+      model: 'stabilityai/sd-turbo',
+      aspectRatio: '1:1',
+      resolution: '512',
+      width: 512,
+      height: 512,
+      steps: 4,
+      cfg: 1.0,
+      negative: 'blurry, low quality, deformed, multiple faces, tiling',
+      samplePrompt: 'Dynamic concept sketch of a futuristic robotic companion, clean silhouette, sharp focus, studio lighting'
+    }
+  };
+
+  function applyImagePreset(presetKey) {
+    const preset = IMAGE_PRESETS[presetKey];
+    if (!preset) return;
+
+    const modelSel = document.getElementById('imageModelSelect');
+    const ratioSel = document.getElementById('imageAspectRatio');
+    const resSel = document.getElementById('imageResolution');
+    const wInput = document.getElementById('imageWidthInput');
+    const hInput = document.getElementById('imageHeightInput');
+    const stepsInput = document.getElementById('imageSteps');
+    const cfgInput = document.getElementById('imageCfg');
+    const pill = document.getElementById('imageActiveModelPill');
+
+    if (modelSel) {
+      modelSel.value = preset.model;
+      if (pill) pill.textContent = preset.model.split('/').pop();
+    }
+    if (ratioSel) ratioSel.value = preset.aspectRatio;
+    if (resSel) resSel.value = preset.resolution;
+    if (wInput) wInput.value = preset.width;
+    if (hInput) hInput.value = preset.height;
+    if (stepsInput) stepsInput.value = preset.steps;
+    if (cfgInput) cfgInput.value = preset.cfg;
+    if (negPromptInput) negPromptInput.value = preset.negative;
+
+    if (promptInput && !promptInput.value.trim()) {
+      promptInput.value = preset.samplePrompt;
+      promptInput.dispatchEvent(new Event('input'));
+    }
+
+    // Toggle active preset pill class
+    document.querySelectorAll('.preset-pill').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.preset === presetKey);
+    });
+
+    showToast(`🎯 已应用配置: ${preset.name} (${preset.aspectRatio}, ${preset.width}×${preset.height})`);
+  }
+
+  document.querySelectorAll('.preset-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      applyImagePreset(btn.dataset.preset);
+    });
+  });
+
   if (chipEyesLips && promptInput) {
     chipEyesLips.onclick = () => {
-      const text = 'symmetrical detailed eyes, natural moist lips, clean white teeth, realistic iris reflections, harmonious facial proportions';
-      if (!promptInput.value.includes('symmetrical detailed eyes')) {
+      const text = 'solo, centered portrait, flawless symmetrical eyes, sharp irises, natural moist lips, clean white teeth, harmonious facial proportions';
+      if (!promptInput.value.includes('flawless symmetrical eyes')) {
         promptInput.value = promptInput.value.trim() ? (promptInput.value.trim() + ', ' + text) : text;
-        showToast('Injected flawless eyes & lips anatomical tags');
+        promptInput.dispatchEvent(new Event('input'));
+        showToast('Injected flawless eyes & lips single-subject tags');
       }
     };
   }
   if (chipStudio && promptInput) {
     chipStudio.onclick = () => {
-      const text = '85mm portrait photography, shallow depth of field, soft studio rim lighting, natural skin texture';
+      const text = 'solo portrait, 85mm portrait photography, shallow depth of field, soft studio rim lighting, natural skin texture';
       if (!promptInput.value.includes('85mm portrait')) {
         promptInput.value = promptInput.value.trim() ? (promptInput.value.trim() + ', ' + text) : text;
+        promptInput.dispatchEvent(new Event('input'));
         showToast('Injected 85mm studio portrait tags');
       }
     };
   }
   if (chipAntiDeform && negPromptInput) {
     chipAntiDeform.onclick = () => {
-      const tags = 'deformed iris, deformed pupils, asymmetrical eyes, cross-eyed, misaligned pupils, crooked mouth, deformed lips, bad teeth, yellow teeth, extra teeth, distorted jaw, poorly drawn face, plastic skin, bad anatomy';
-      negPromptInput.value = negPromptInput.value.trim() ? (negPromptInput.value.trim() + ', ' + tags) : tags;
-      showToast('Filled anti-deformity facial filter tags');
+      const tags = 'multiple faces, duplicate heads, extra eyes, multiple mouths, duplicate face, cloned face, tiling, grid, repeated pattern, split screen, double image, collage, deformed iris, cross-eyed, crooked mouth, deformed lips, bad teeth, bad anatomy, deformed limbs, mutation, blurry';
+      negPromptInput.value = tags;
+      showToast('Filled comprehensive anti-tiling & anti-deformity filters');
     };
   }
 
