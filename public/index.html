@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/styles.css?v=20261103_v15" />
+  <link rel="stylesheet" href="/styles.css?v=20261103_v16" />
 </head>
 <body>
   <!-- LOGIN OVERLAY (Triggers Auto-Run Colab on Sign-In) -->
@@ -597,6 +597,8 @@
                 <label>Ratio
                   <select id="imageAspectRatio">
                     <option value="1:1" selected>1:1 Square (1024×1024)</option>
+                    <option value="flux-portrait">💎 FLUX 黄金人像 (896×1152 · 推荐)</option>
+                    <option value="flux-tall">💎 FLUX 高挑肖像 (832×1216 · 推荐)</option>
                     <option value="16:9">16:9 Cinematic (1344×768)</option>
                     <option value="9:16">9:16 Story / Mobile (768×1344)</option>
                     <option value="3:4">3:4 Portrait (768×1024)</option>
@@ -633,6 +635,20 @@
                 <label>CFG
                   <input id="imageCfg" type="number" step="0.5" value="3.0" min="1" max="15" style="width:48px" />
                 </label>
+                <label>Sampler
+                  <select id="imageSamplerSelect" style="font-size:11px; padding:2px 5px; height:24px;">
+                    <option value="euler" selected>Euler (FLUX 最佳)</option>
+                    <option value="dpmpp_2m">DPM++ 2M</option>
+                    <option value="ddim">DDIM</option>
+                  </select>
+                </label>
+                <label>Scheduler
+                  <select id="imageSchedulerSelect" style="font-size:11px; padding:2px 5px; height:24px;">
+                    <option value="simple" selected>Simple (FLUX 原生)</option>
+                    <option value="beta">Beta (平滑人像)</option>
+                    <option value="normal">Normal</option>
+                  </select>
+                </label>
                 <div style="display:inline-flex; align-items:center; gap:4px; font-size:12px;">
                   <label for="imageSeedInput">Seed</label>
                   <input id="imageSeedInput" type="number" placeholder="Random" style="width:90px;" />
@@ -660,6 +676,9 @@
                 <span>推荐配置:</span>
               </div>
               <div class="preset-pills-list">
+                <button type="button" class="preset-pill active" data-preset="flux-comfy-gold" title="FLUX.1-dev · 896×1152 · Steps 28 · CFG 3.5 · Euler/Simple (ComfyUI/Forge 官方黄金推荐)">
+                  💎 FLUX 黄金配置 (896×1152 · 28步)
+                </button>
                 <button type="button" class="preset-pill active" data-preset="photoreal-portrait" title="FLUX Realism · 1:1 (1024×1024) · Steps 12 · 极致写实肖像">
                   📸 8K 写实肖像 (1:1)
                 </button>
@@ -1052,6 +1071,6 @@
   </div>
 
   <div id="toastContainer" class="toast-container"></div>
-  <script type="module" src="/app.js?v=20261103_v15"></script>
+  <script type="module" src="/app.js?v=20261103_v16"></script>
 </body>
 </html>

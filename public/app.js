@@ -1806,6 +1806,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     else if (ratio === '4:3') { w = res; h = Math.round(res * 3 / 4 / 16) * 16; }
     else if (ratio === '2:3') { w = Math.round(res * 2 / 3 / 16) * 16; h = res; }
     else if (ratio === '21:9') { w = Math.round(res * 21 / 9 / 16) * 16; h = res; }
+    else if (ratio === 'flux-portrait') { w = 896; h = 1152; }
+    else if (ratio === 'flux-tall') { w = 832; h = 1216; }
 
     wInput.value = w;
     hInput.value = h;
@@ -1861,6 +1863,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Recommended Presets Configuration (一键推荐画风与最优参数)
   const IMAGE_PRESETS = {
+    'flux-comfy-gold': {
+      name: '💎 FLUX 官方黄金配置 (896×1152 · 28步 · CFG 3.5)',
+      model: 'black-forest-labs/FLUX.1-dev',
+      aspectRatio: 'flux-portrait',
+      resolution: '1024',
+      width: 896,
+      height: 1152,
+      steps: 28,
+      cfg: 3.5,
+      sampler: 'euler',
+      scheduler: 'simple',
+      negative: 'multiple faces, duplicate heads, extra eyes, multiple mouths, duplicate face, cloned face, tiling, grid, repeated pattern, split screen, double image, collage, deformed iris, cross-eyed, deformed mouth, crooked teeth, bad anatomy, deformed limbs, mutation, blurry, watermark',
+      samplePrompt: 'A breathtaking photorealistic portrait of an elegant woman, intricate jewelry, vivid soulful eyes, natural lip texture, professional 85mm portrait photography, soft studio rim lighting, 8k uhd, cinematic masterpiece'
+    },
     'photoreal-portrait': {
       name: '📸 8K 写实肖像 (1:1)',
       model: 'flux-realism',
@@ -1958,6 +1974,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (hInput) hInput.value = preset.height;
     if (stepsInput) stepsInput.value = preset.steps;
     if (cfgInput) cfgInput.value = preset.cfg;
+    const samplerSel = document.getElementById('imageSamplerSelect');
+    const schedulerSel = document.getElementById('imageSchedulerSelect');
+    if (samplerSel && preset.sampler) samplerSel.value = preset.sampler;
+    if (schedulerSel && preset.scheduler) schedulerSel.value = preset.scheduler;
     if (negPromptInput) negPromptInput.value = preset.negative;
 
     if (promptInput && !promptInput.value.trim()) {

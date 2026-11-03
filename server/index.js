@@ -1235,6 +1235,8 @@ async function createGeneratedImage(prompt, options = {}) {
     else if (aspectRatio === '4:3') { width = resBase; height = Math.round(resBase * 3 / 4 / 16) * 16; }
     else if (aspectRatio === '2:3') { width = Math.round(resBase * 2 / 3 / 16) * 16; height = resBase; }
     else if (aspectRatio === '21:9') { width = Math.round(resBase * 21 / 9 / 16) * 16; height = resBase; }
+    else if (aspectRatio === 'flux-portrait') { width = 896; height = 1152; }
+    else if (aspectRatio === 'flux-tall') { width = 832; height = 1216; }
     else { width = resBase; height = resBase; }
   }
 
