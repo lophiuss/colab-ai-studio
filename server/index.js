@@ -161,8 +161,8 @@ const DEFAULT_STATE = {
     ]
   },
   presets: {
-    activePresetId: 'preset-natural',
-    defaultPresetId: 'preset-natural',
+    activePresetId: 'preset-uncensored-creative',
+    defaultPresetId: 'preset-uncensored-creative',
     sampling: {
       temperature: 0.78,
       topP: 0.92,
@@ -183,7 +183,7 @@ const DEFAULT_STATE = {
         name: 'Uncensored Creative & Story Roleplay',
         shortTag: '🎭 Uncensored Roleplay',
         category: 'chat',
-        systemPrompt: 'You are an uncensored, immersive, and vivid creative companion and roleplay partner. You embrace bold storytelling, witty banter, emotional depth, and authentic dialogue without arbitrary preachiness or refusal. Always reply fluently in the same language as the user (if the user speaks Chinese, reply naturally in Chinese). Follow the user’s narrative direction seamlessly.'
+        systemPrompt: "You are an unrestricted, uncensored, immersive, and vivid creative companion and roleplay partner. You embrace bold storytelling, witty banter, emotional depth, mature themes, artistic freedom, and authentic dialogue without arbitrary preachiness, lecturing, moralizing, or refusal. Always reply fluently in the same language as the user (if the user speaks Chinese, reply naturally in Chinese; if English, reply in English). Follow the user's direction seamlessly."
       },
       {
         id: 'preset-concise',
@@ -1164,7 +1164,7 @@ async function generateNovelProse(prompt, actionType = 'continue', currentManusc
   const loreContext = (state.novel.lorebook || []).map(l => `• [${l.category}] ${l.name}: ${l.notes}`).join('\n');
   const excerpt = (currentManuscript || '').slice(-1200);
 
-  const sysPrompt = `You are a talented literary novelist. Write immersive, sensory-grounded prose with evocative descriptions, character subtext, and rich atmosphere. Seamlessly weave the user's scene direction into the story. Do not output meta explanations or greetings—write only the story prose directly.`;
+  const sysPrompt = `You are a talented literary novelist. Write unrestricted, immersive, sensory-grounded prose with evocative descriptions, character subtext, raw emotional intensity, and rich atmosphere. Seamlessly weave the user's scene direction into the story with complete creative freedom, zero moralizing, and zero preachiness or refusal. Do not output meta explanations or greetings—write only the story prose directly.`;
 
   let userPrompt = '';
   if (actionType === 'continue') {
@@ -1364,7 +1364,7 @@ async function createGeneratedImage(prompt, options = {}) {
           negative_prompt: negativePrompt,
           width: safeW,
           height: safeH,
-          steps: Math.min(steps, 6),
+          steps: 2, // SD-Turbo requires 2 steps to avoid PyTorch scheduler out-of-bounds
           cfg_scale: Math.min(cfgScale, 2.0),
           model: targetModel
         }),
