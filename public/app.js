@@ -571,13 +571,6 @@ function renderImageStudio() {
       }
     };
   });
-});
-      if (appState) appState.images = appState.images.filter(img => img.id !== id);
-      grid.dataset.lastSig = ''; // Force re-render
-      renderImageStudio();
-      showToast('Image deleted');
-    };
-  });
 }
 
 const videoPlaybackTimers = new Map();
@@ -1063,6 +1056,11 @@ function renderQueueDock() {
 function renderAccountAndSetupFields() {
   if (!appState) return;
   const { user, colab } = appState;
+  
+  // Auto-hide login modal if user is authenticated or already logged in
+  if (user && user.authenticated) {
+    document.getElementById('loginModal')?.classList.add('hidden');
+  }
   const savedEmail = localStorage.getItem('colab_creator_email') || user.email || 'creator@colabaistudio.local';
   const savedNotebookUrl = localStorage.getItem('colab_notebook_url') || colab.notebookUrl || 'https://colab.research.google.com/drive/1ColabAIStudioWorkerAutoRun';
 
@@ -1334,29 +1332,57 @@ document.addEventListener('DOMContentLoaded', async () => {
   setInterval(fetchState, 1000);
 
   // 1. Login Form -> Auto-Run Colab on Login
-  document.getElementById('loginForm').addEventListener('submit', async e => {
-    e.preventDefault();
-    const email = document.getElementById('loginEmail').value.trim();
-    const notebookUrl = document.getElementById('loginNotebookUrl').value.trim();
-    const gpuTier = document.getElementById('loginGpuTier').value;
-    const cuBalance = Number(document.getElementById('loginCuBalance').value || 186.4);
-    const autoRun = document.getElementById('loginAutoStart').checked;
+  const loginFormEl = document.getElementById('loginForm');
+  if (loginFormEl) {
+    loginFormEl.addEventListener('submit', async e => {
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value.trim();
+      const notebookUrl = document.getElementById('loginNotebookUrl').value.trim();
+      const gpuTier = document.getElementById('loginGpuTier').value;
+      const cuBalance = Number(document.getElementById('loginCuBalance').value || 186.4);
+      const autoRun = document.getElementById('loginAutoStart').checked;
 
-    if (email) localStorage.setItem('colab_creator_email', email);
-    if (notebookUrl) localStorage.setItem('colab_notebook_url', notebookUrl);
+      if (email) localStorage.setItem('colab_creator_email', email);
+      if (notebookUrl) localStorage.setItem('colab_notebook_url', notebookUrl);
 
-    await apiPost('/api/user/account', { email, notebookUrl, gpuTier, autoRunOnLogin: autoRun });
-    await apiPost('/api/colab/config', {
-      autoRunOnLogin: autoRun,
-      notebookUrl,
-      gpuTier,
-      remainingCU: cuBalance
+      // Immediately dismiss modal so user is never trapped
+      document.getElementById('loginModal')?.classList.add('hidden');
+      showToast(`Signed in! Auto-launching Colab (${gpuTier}) & syncing ${cuBalance.toFixed(1)} CU...`);
+
+      try {
+        await apiPost('/api/user/account', { email, notebookUrl, gpuTier, autoRunOnLogin: autoRun });
+        await apiPost('/api/colab/config', {
+          autoRunOnLogin: autoRun,
+          notebookUrl,
+          gpuTier,
+          remainingCU: cuBalance
+        });
+        await apiPost('/api/auth/login', { email, notebookUrl, gpuTier });
+      } catch (err) {
+        console.warn('Login handshake notice:', err);
+      }
+      await fetchState();
     });
-    await apiPost('/api/auth/login', { email, notebookUrl, gpuTier });
-    document.getElementById('loginModal').classList.add('hidden');
-    showToast(`Signed in! Auto-launching Colab (${gpuTier}) & syncing ${cuBalance.toFixed(1)} CU...`);
-    await fetchState();
-  });
+  }
+
+  // Dismiss / Close buttons for Login Modal
+  const btnCloseLogin = document.getElementById('btnCloseLoginModal');
+  if (btnCloseLogin) {
+    btnCloseLogin.onclick = (e) => {
+      e.preventDefault();
+      document.getElementById('loginModal')?.classList.add('hidden');
+      showToast('Entered Studio');
+    };
+  }
+
+  const btnSkipLogin = document.getElementById('btnSkipLogin');
+  if (btnSkipLogin) {
+    btnSkipLogin.onclick = (e) => {
+      e.preventDefault();
+      document.getElementById('loginModal')?.classList.add('hidden');
+      showToast('Entered Studio in Standalone / Offline Mode');
+    };
+  }
 
   // 2. Wake / Disconnect / Connect / 1-Line CLI Colab Buttons
   const btnCopyCli = document.getElementById('btnCopyColabCli');

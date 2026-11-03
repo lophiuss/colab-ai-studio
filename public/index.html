@@ -7,12 +7,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/styles.css?v=20261101_v13" />
+  <link rel="stylesheet" href="/styles.css?v=20261103_v14" />
 </head>
 <body>
   <!-- LOGIN OVERLAY (Triggers Auto-Run Colab on Sign-In) -->
   <div id="loginModal" class="login-backdrop">
-    <div class="login-dialog">
+    <div class="login-dialog" style="position:relative;">
+      <button id="btnCloseLoginModal" type="button" class="modal-close" style="position:absolute; top:16px; right:16px; background:rgba(255,255,255,0.08); border:none; color:var(--text-muted); width:28px; height:28px; border-radius:50%; cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center;" title="Enter Studio directly (Close Modal)">✕</button>
       <div class="login-brand-row">
         <span class="brand-glyph">⚡</span>
         <div>
@@ -64,6 +65,9 @@
         <div class="login-actions">
           <button type="submit" class="btn-primary btn-large">
             Sign In &amp; Auto-Launch Colab Runtime
+          </button>
+          <button id="btnSkipLogin" type="button" class="btn-secondary" style="margin-top:8px; font-size:12px; padding:7px 12px; color:var(--text-muted); text-align:center; width:100%;">
+            ⚡ Enter Studio Directly (Offline / Standalone Mode)
           </button>
         </div>
       </form>
@@ -1022,6 +1026,6 @@
   </div>
 
   <div id="toastContainer" class="toast-container"></div>
-  <script type="module" src="/app.js?v=20261101_v13"></script>
+  <script type="module" src="/app.js?v=20261103_v14"></script>
 </body>
 </html>
